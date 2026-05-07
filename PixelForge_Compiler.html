@@ -1,0 +1,2258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelForge Compiler — CS4031</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg0:#030608;--bg1:#070d12;--bg2:#0c1520;--bg3:#111e2e;
+  --green:#00ff41;--cyan:#00e5ff;--magenta:#ff006e;--yellow:#ffee00;--orange:#ff8c00;
+  --dim:#5e7c9c;--mid:#8dafd4;--bright:#c8d8e8;
+  --gg:0 0 8px #00ff41,0 0 20px #00ff4133;
+  --gc:0 0 8px #00e5ff,0 0 20px #00e5ff33;
+  --gm:0 0 8px #ff006e,0 0 20px #ff006e33;
+  --gy:0 0 8px #ffee00,0 0 16px #ffee0033;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg0);color:var(--bright);font-family:'Share Tech Mono',monospace;display:flex;flex-direction:column}
+
+/* ── CRT Effects ── */
+body::before{content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.13) 2px,rgba(0,0,0,.13) 4px);
+  pointer-events:none;z-index:9999}
+body::after{content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at 50% 50%,transparent 55%,rgba(0,0,0,.65) 100%);
+  pointer-events:none;z-index:9998}
+
+/* ── Header ── */
+.hdr{
+  flex-shrink:0;height:64px;background:var(--bg1);
+  border-bottom:1px solid var(--bg3);
+  display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+  position:relative;
+}
+.hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--green),var(--cyan),var(--magenta),transparent)}
+.logo{font-family:'Press Start 2P',cursive;font-size:15px;letter-spacing:1px;
+  color:var(--green);text-shadow:var(--gg);animation:flicker 6s infinite}
+.logo em{color:var(--cyan);text-shadow:var(--gc);font-style:normal}
+.logo-sub{font-size:8px;color:var(--dim);margin-top:5px;letter-spacing:2px}
+@keyframes flicker{0%,94%,100%{opacity:1}95%{opacity:.7}96%{opacity:1}97.5%{opacity:.85}98.5%{opacity:1}}
+.hdr-badges{display:flex;gap:6px;flex-wrap:wrap}
+.badge{font-family:'Press Start 2P',cursive;font-size:7px;padding:4px 8px;
+  border:1px solid;letter-spacing:1px;transition:all .2s}
+.badge-g{color:var(--green);border-color:var(--green)}
+.badge-c{color:var(--cyan);border-color:var(--cyan)}
+.badge-m{color:var(--magenta);border-color:var(--magenta)}
+.badge-y{color:var(--yellow);border-color:var(--yellow)}
+.badge-o{color:var(--orange);border-color:var(--orange)}
+.badge.active{background:rgba(0,229,255,.15);box-shadow:var(--gc)}
+.badge-g.active{background:rgba(0,255,65,.15);box-shadow:var(--gg)}
+.badge-m.active{background:rgba(255,0,110,.15);box-shadow:var(--gm)}
+.badge-y.active{background:rgba(255,238,0,.1);box-shadow:var(--gy)}
+.hdr-team{text-align:right;font-size:9px;line-height:1.9;color:var(--dim)}
+.hdr-team span{color:var(--cyan)}
+
+/* ── Backend mode banner ── */
+.mode-banner{
+  flex-shrink:0;height:22px;background:rgba(0,255,65,.06);
+  border-bottom:1px solid rgba(0,255,65,.2);
+  display:flex;align-items:center;padding:0 14px;gap:12px;font-size:9px;
+}
+.mode-dot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex-shrink:0;transition:all .3s}
+.mode-dot.connected{background:var(--green);box-shadow:var(--gg)}
+.mode-dot.error{background:var(--magenta);box-shadow:var(--gm)}
+.mode-dot.loading{background:var(--yellow);box-shadow:var(--gy);animation:pulse .8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+#mode-label{color:var(--mid)}
+#mode-label span{color:var(--green)}
+.mode-right{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:8px}
+.be-toggle{display:flex;align-items:center;gap:5px;color:var(--mid);cursor:pointer}
+.tog{width:30px;height:15px;background:var(--bg0);border:1px solid var(--dim);cursor:pointer;position:relative;transition:.2s}
+.tog.on{border-color:var(--green);background:rgba(0,255,65,.08)}
+.tog::after{content:'';position:absolute;width:9px;height:9px;background:var(--dim);top:2px;left:2px;transition:.2s}
+.tog.on::after{left:17px;background:var(--green)}
+#backend-url-input{background:var(--bg3);border:1px solid var(--dim);color:var(--bright);
+  font-family:'Share Tech Mono',monospace;font-size:8px;padding:2px 6px;width:150px;outline:none}
+#backend-url-input:focus{border-color:var(--cyan)}
+
+/* ── Main Layout ── */
+.main{
+  flex:1;min-height:0;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:1fr minmax(320px,42%);
+}
+.left-col{grid-row:1;grid-column:1;display:flex;flex-direction:column;border-right:1px solid var(--bg3);overflow:hidden}
+.right-col{grid-row:1;grid-column:2;display:flex;flex-direction:column;overflow:hidden}
+.debug-col{grid-row:2;grid-column:1/-1;display:flex;flex-direction:column;border-top:1px solid var(--bg3);overflow:hidden}
+
+
+/* ── Minimize Debug Col ── */
+.main.minimized-debug {
+  grid-template-rows: 1fr auto !important;
+}
+.main.minimized-debug .debug-col {
+  border-top: none;
+}
+.main.minimized-debug .tc, 
+.main.minimized-debug #tc-pipeline, 
+.main.minimized-debug #tc-source {
+  display: none !important;
+}
+.tab-row button.tab-minimize {
+  margin-left: auto;
+  color: var(--dim);
+}
+.tab-row button.tab-minimize:hover {
+  color: var(--bright);
+}
+
+/* ── Panel Header ── */
+.ph{
+  flex-shrink:0;height:36px;background:var(--bg2);
+  border-bottom:1px solid var(--bg3);
+  display:flex;align-items:center;justify-content:space-between;padding:0 14px;
+  gap:10px;
+}
+.ph-title{font-family:'Press Start 2P',cursive;font-size:7px;color:var(--green);
+  display:flex;align-items:center;gap:7px;white-space:nowrap}
+.ph-title::before{content:'▶';color:var(--cyan);font-size:7px}
+
+/* ── Code Editor ── */
+.editor-wrap{flex:1;min-height:0;display:flex;overflow:hidden}
+.ln{
+  background:var(--bg0);border-right:1px solid var(--bg3);
+  padding:10px 8px;color:var(--dim);font-size:12px;line-height:1.55;
+  text-align:right;user-select:none;white-space:pre;min-width:36px;overflow:hidden;
+}
+#editor{
+  flex:1;background:var(--bg0);color:var(--green);
+  border:none;outline:none;padding:10px 12px;resize:none;
+  font-family:'Share Tech Mono',monospace;font-size:13px;line-height:1.55;
+  caret-color:var(--cyan);tab-size:2;white-space:pre;overflow:auto;
+}
+#editor::selection{background:rgba(0,229,255,.18)}
+#editor::placeholder{color:var(--dim)}
+
+/* ── Toolbar ── */
+.toolbar{flex-shrink:0;background:var(--bg2);border-top:1px solid var(--bg3);
+  padding:8px 12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.btn{font-family:'Press Start 2P',cursive;font-size:7px;padding:7px 12px;cursor:pointer;
+  border:1px solid;transition:all .15s;letter-spacing:.5px;outline:none;background:transparent}
+.btn-run{color:var(--green);border-color:var(--green)}
+.btn-run:hover{background:rgba(0,255,65,.1);box-shadow:var(--gg)}
+.btn-sec{color:var(--cyan);border-color:var(--cyan)}
+.btn-sec:hover{background:rgba(0,229,255,.1);box-shadow:var(--gc)}
+.btn-dng{color:var(--magenta);border-color:var(--magenta)}
+.btn-dng:hover{background:rgba(255,0,110,.1);box-shadow:var(--gm)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.charcount{margin-left:auto;font-size:10px;color:var(--dim)}
+
+/* ── Samples ── */
+.samples{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.smp-label{font-size:9px;color:var(--dim);white-space:nowrap}
+.chip{font-size:9px;padding:3px 8px;border:1px solid var(--bg3);color:var(--mid);
+  cursor:pointer;background:transparent;font-family:'Share Tech Mono',monospace;transition:all .15s}
+.chip:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* ── Messages ── */
+.msg-area{flex-shrink:0;height:110px;overflow-y:auto;padding:8px 12px;
+  border-top:1px solid var(--bg3);display:flex;flex-direction:column;gap:4px}
+.msg{display:flex;align-items:flex-start;gap:7px;font-size:11px;
+  padding:5px 8px;border-left:3px solid;line-height:1.4}
+.msg-ok{border-color:var(--green);color:var(--green);background:rgba(0,255,65,.05)}
+.msg-err{border-color:var(--magenta);color:var(--magenta);background:rgba(255,0,110,.06)}
+.msg-warn{border-color:var(--yellow);color:var(--yellow);background:rgba(255,238,0,.05)}
+.msg-info{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,.05)}
+.msg-icon{flex-shrink:0;margin-top:1px}
+
+/* ── Canvas Panel ── */
+.canvas-body{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:10px;overflow:hidden;padding:10px}
+#px-canvas{image-rendering:pixelated;border:2px solid var(--cyan);box-shadow:var(--gc);cursor:crosshair;max-width:100%;max-height:100%}
+.canvas-info{font-size:10px;color:var(--mid);text-align:center}
+.anim-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center}
+.anim-btn{background:transparent;border:1px solid var(--dim);color:var(--bright);
+  width:28px;height:28px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.anim-btn:hover,.anim-btn.on{border-color:var(--green);color:var(--green);box-shadow:var(--gg)}
+.fc{font-size:10px;color:var(--cyan);min-width:80px;text-align:center}
+.spd{font-size:9px;color:var(--dim)}
+#spd-range{width:65px;accent-color:var(--green);vertical-align:middle}
+#spd-val{font-size:10px;color:var(--green);min-width:22px}
+.canvas-ph{display:flex;align-items:center;gap:8px}
+.toggle-wrap{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--mid)}
+
+/* ── Debug Panel ── */
+.tab-row{flex-shrink:0;display:flex;border-bottom:1px solid var(--bg3);background:var(--bg2)}
+.tab{font-family:'Press Start 2P',cursive;font-size:7px;padding:8px 14px;cursor:pointer;
+  color:var(--dim);border:none;background:transparent;border-right:1px solid var(--bg3);
+  border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.5px}
+.tab:hover{color:var(--mid)}
+.tab.on{color:var(--cyan);border-bottom-color:var(--cyan);background:rgba(0,229,255,.04)}
+.tc{display:none;flex:1;overflow-y:auto;padding:10px 14px}
+.tc.on{display:block}
+/* pipeline tab overrides — must NOT use display:block or it breaks flex children */
+#tc-pipeline{display:none;padding:0;overflow:hidden;flex-direction:column;flex:1}
+#tc-pipeline.on{display:flex}
+
+/* ── Token Display ── */
+.tok-list{display:flex;flex-wrap:wrap;gap:5px}
+.tok{font-size:10px;padding:2px 7px;border:1px solid;font-family:'Share Tech Mono',monospace;cursor:default;transition:transform .1s}
+.tok:hover{transform:scale(1.05)}
+.T-CANVAS,.T-COLOR,.T-DRAW,.T-ANIMATE,.T-FILL{color:var(--magenta);border-color:var(--magenta);background:rgba(255,0,110,.08)}
+.T-NUMBER{color:var(--orange);border-color:var(--orange);background:rgba(255,140,0,.08)}
+.T-COLOR_NAME{color:var(--cyan);border-color:var(--cyan);background:rgba(0,229,255,.08)}
+.T-PIXEL,.T-SQUARE,.T-LINE,.T-CIRCLE,.T-RECT,.T-TRIANGLE{color:var(--green);border-color:var(--green);background:rgba(0,255,65,.08)}
+.T-DIRECTION,.T-MOVE{color:#cc88ff;border-color:#cc88ff;background:rgba(204,136,255,.08)}
+.T-RGB,.T-LPAREN,.T-RPAREN,.T-COMMA{color:var(--yellow);border-color:var(--yellow);background:rgba(255,238,0,.06)}
+.T-IDENTIFIER{color:var(--mid);border-color:var(--dim)}
+.T-EOF{color:var(--dim);border-color:var(--dim);opacity:.5}
+
+/* ── AST ── */
+.ast-tree{font-size:11px;line-height:1.9;font-family:'Share Tech Mono',monospace}
+.ast-tree pre{color:var(--bright);font-size:10.5px;line-height:1.7;white-space:pre-wrap;word-break:break-all}
+
+/* ── IR ── */
+.ir-list{font-size:11px;line-height:1.9}
+.ir-row{display:flex;gap:14px;padding:1px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.ir-i{color:var(--dim);min-width:28px}
+.ir-op{color:var(--magenta);min-width:180px}
+.ir-a{color:var(--yellow)}
+.ir-section-head{font-family:'Press Start 2P',cursive;font-size:7px;color:var(--cyan);
+  padding:6px 0 4px;border-top:1px solid var(--bg3);margin-top:6px;letter-spacing:1px}
+.ir-note{color:var(--orange);font-size:10px;padding:2px 0;padding-left:8px;border-left:2px solid var(--orange)}
+.ir-removed{color:var(--dim);font-size:9px;margin-top:4px}
+
+/* ── Optimizer panel ── */
+.opt-badge{display:inline-block;font-family:'Press Start 2P',cursive;font-size:7px;
+  padding:3px 7px;border:1px solid var(--orange);color:var(--orange);margin-right:6px}
+
+/* ── Lang Ref ── */
+.ref-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:11px;line-height:1.7;align-items:baseline}
+.ref-cmd{color:var(--cyan);white-space:nowrap}
+.ref-cmd em{color:var(--yellow);font-style:normal}
+.ref-desc{color:var(--mid)}
+
+/* ── Source Code Viewer ── */
+.src-file-bar{display:flex;flex-wrap:wrap;gap:5px;padding:8px 12px 6px;border-bottom:1px solid var(--bg3);flex-shrink:0;background:var(--bg1)}
+.src-chip{font-family:'Press Start 2P',cursive;font-size:7px;padding:4px 9px;border:1px solid var(--dim);color:var(--dim);
+  cursor:pointer;background:transparent;transition:all .15s;letter-spacing:.5px}
+.src-chip:hover{border-color:var(--cyan);color:var(--cyan)}
+.src-chip.active{border-color:var(--green);color:var(--green);background:rgba(0,255,65,.08);box-shadow:var(--gg)}
+.src-code-wrap{flex:1;min-height:0;overflow:auto;display:flex;font-size:11.5px;line-height:1.7;font-family:'Share Tech Mono',monospace}
+.src-lns{background:var(--bg0);padding:6px 10px 6px 6px;color:var(--dim);text-align:right;user-select:none;border-right:1px solid var(--bg3);min-width:38px;flex-shrink:0;white-space:pre}
+.src-code{padding:6px 14px;white-space:pre;flex:1;overflow-x:auto}
+/* Python tokens */
+.py-kw{color:#cc88ff}       /* keywords */
+.py-bi{color:var(--cyan)}   /* builtins */
+.py-str{color:#aadd88}      /* strings */
+.py-num{color:var(--orange)}/* numbers */
+.py-cmt{color:var(--dim);font-style:italic} /* comments */
+.py-fn{color:var(--yellow)} /* function defs */
+.py-cls{color:var(--green)} /* class defs */
+.py-dec{color:var(--magenta)} /* decorators */
+.src-load-msg{display:flex;align-items:center;justify-content:center;flex:1;color:var(--dim);font-size:11px;gap:10px}
+#tc-source{display:none;flex-direction:column;flex:1;min-height:0}
+#tc-source.on{display:flex}
+
+
+/* ═══════════════════════════════════════════════════════════
+   PIPELINE VIEW — 6-phase compiler pipeline
+   ═══════════════════════════════════════════════════════════ */
+.pipe-wrap{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+
+/* ── Flow diagram bar (compact, scrolls horizontally) ── */
+.pipe-flow-section{
+  flex-shrink:0;
+  background:linear-gradient(180deg,var(--bg0) 0%,var(--bg1) 100%);
+  border-bottom:2px solid var(--bg3);
+  padding:8px 16px;
+}
+.pipe-flow-label{
+  font-family:'Press Start 2P',cursive;font-size:5.5px;
+  color:var(--dim);letter-spacing:3px;text-align:center;
+  margin-bottom:8px;text-transform:uppercase;
+}
+.pipe-flow-row{
+  display:flex;align-items:center;justify-content:center;
+  flex-wrap:nowrap;overflow-x:auto;gap:0;
+  padding-bottom:4px;
+  /* nice scrollbar */
+  scrollbar-width:thin;scrollbar-color:var(--bg3) transparent;
+}
+.pipe-flow-row::-webkit-scrollbar{height:4px}
+.pipe-flow-row::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:2px}
+
+/* Node base colors */
+#pn-lexer { border-color: rgba(0, 229, 255, 0.4); }
+#pn-lexer .pn-name { color: var(--cyan); }
+#pn-parser { border-color: rgba(0, 255, 65, 0.4); }
+#pn-parser .pn-name { color: var(--green); }
+#pn-semant { border-color: rgba(255, 238, 0, 0.4); }
+#pn-semant .pn-name { color: var(--yellow); }
+#pn-ir { border-color: rgba(255, 0, 110, 0.4); }
+#pn-ir .pn-name { color: var(--magenta); }
+#pn-opt { border-color: rgba(255, 140, 0, 0.4); }
+#pn-opt .pn-name { color: var(--orange); }
+#pn-codegen { border-color: rgba(200, 216, 232, 0.4); }
+#pn-codegen .pn-name { color: var(--bright); }
+
+/* Nodes */
+.pipe-node{
+  display:flex;flex-direction:column;align-items:center;
+  padding:6px 10px 7px;border:1px solid var(--dim);background:var(--bg2);
+  min-width:72px;width:72px;cursor:pointer;
+  transition:border-color .2s,background .2s,box-shadow .2s;
+  flex-shrink:0;position:relative;gap:3px;
+}
+.pipe-node:hover{border-color:var(--cyan);background:rgba(0,229,255,.04)}
+.pipe-node.pn-running{
+  border-color:var(--yellow) !important; background:rgba(255,238,0,.06) !important;
+  box-shadow:0 0 12px rgba(255,238,0,.3) !important;
+  animation:pulse .7s ease-in-out infinite;
+}
+.pipe-node.pn-done{
+  border-color:var(--green) !important; background:rgba(0,255,65,.05) !important;
+  box-shadow:0 0 8px rgba(0,255,65,.18) !important;
+}
+.pipe-node.pn-error{
+  border-color:var(--magenta) !important; background:rgba(255,0,110,.06) !important;
+  box-shadow:0 0 8px rgba(255,0,110,.2) !important;
+}
+.pn-num{
+  position:absolute;top:3px;left:4px;
+  font-family:'Press Start 2P',cursive;font-size:5px;color:var(--dim);opacity:.6;
+}
+.pn-icon{font-size:14px;line-height:1;margin-top:2px}
+.pn-name{
+  font-family:'Press Start 2P',cursive;font-size:4.5px;
+  color:var(--mid);letter-spacing:.2px;text-align:center;line-height:1.5;
+}
+.pn-stat{font-size:8px;color:var(--dim);transition:color .2s;text-align:center;white-space:nowrap}
+.pipe-node.pn-running .pn-stat,.pipe-node.pn-running .pn-name{color:var(--yellow)}
+.pipe-node.pn-done    .pn-stat,.pipe-node.pn-done    .pn-name{color:var(--green)}
+.pipe-node.pn-error   .pn-stat,.pipe-node.pn-error   .pn-name{color:var(--magenta)}
+
+/* Arrows between nodes */
+.pipe-arrow{
+  flex-shrink:0;color:var(--dim);font-size:12px;
+  padding:0 3px;transition:color .35s,text-shadow .35s;
+  user-select:none;align-self:center;
+}
+.pipe-arrow.lit{color:var(--green);text-shadow:0 0 5px #00ff41}
+
+/* ── Scrollable cards area ── */
+.pipe-cards{
+  flex:1;min-height:0;overflow-y:auto;
+  padding:6px 10px;display:flex;flex-direction:column;gap:3px;
+  scrollbar-width:thin;scrollbar-color:var(--bg3) transparent;
+}
+.pipe-cards::-webkit-scrollbar{width:5px}
+.pipe-cards::-webkit-scrollbar-track{background:transparent}
+.pipe-cards::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px}
+.pipe-cards::-webkit-scrollbar-thumb:hover{background:var(--dim)}
+
+/* Cards */
+.pipe-card{
+  border:1px solid var(--bg3);background:var(--bg2);
+  transition:border-color .25s,box-shadow .25s;flex-shrink:0;
+}
+.pipe-card-hdr{
+  display:flex;align-items:center;gap:7px;padding:7px 11px;
+  cursor:pointer;user-select:none;transition:background .12s;
+  min-height:36px;
+}
+.pipe-card-hdr:hover{background:rgba(255,255,255,.02)}
+.pcard-num{
+  font-family:'Press Start 2P',cursive;font-size:5.5px;
+  color:var(--dim);min-width:16px;text-align:center;flex-shrink:0;
+}
+.pcard-icon{font-size:14px;flex-shrink:0;line-height:1}
+.pcard-title{
+  font-family:'Press Start 2P',cursive;font-size:6px;
+  letter-spacing:.4px;flex:1;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.pcard-sub{font-size:8px;color:var(--dim);margin-right:4px;white-space:nowrap;flex-shrink:0}
+.pcard-badge{
+  font-size:6px;padding:2px 6px;border:1px solid var(--dim);
+  color:var(--dim);font-family:'Press Start 2P',cursive;
+  flex-shrink:0;letter-spacing:.4px;white-space:nowrap;
+}
+.pcard-chevron{
+  font-size:8px;color:var(--dim);transition:transform .2s;margin-left:2px;flex-shrink:0;
+}
+.pcard-chevron.open{transform:rotate(90deg)}
+.pipe-card-body{
+  display:none;padding:8px 14px 12px;
+  font-size:11px;line-height:1.75;border-top:1px solid var(--bg3);
+  overflow-x:auto;
+}
+.pipe-card-body.open{display:block}
+
+/* Card state colours */
+.pipe-card.pc-idle   .pcard-title{color:var(--dim)}
+.pipe-card.pc-running .pcard-title{color:var(--yellow)}
+.pipe-card.pc-running{border-color:rgba(255,238,0,.28)}
+.pipe-card.pc-done   .pcard-title{color:var(--green)}
+.pipe-card.pc-done  {border-color:rgba(0,255,65,.25)}
+.pipe-card.pc-error  .pcard-title{color:var(--magenta)}
+.pipe-card.pc-error {border-color:rgba(255,0,110,.38)}
+.pipe-card.pc-done  .pcard-badge{border-color:var(--green);color:var(--green)}
+.pipe-card.pc-error .pcard-badge{border-color:var(--magenta);color:var(--magenta)}
+.pipe-card.pc-running .pcard-badge{border-color:var(--yellow);color:var(--yellow)}
+
+/* View Source button */
+.src-btn{
+  font-family:'Press Start 2P',cursive;font-size:5.5px;
+  padding:3px 7px;border:1px solid var(--dim);color:var(--dim);
+  background:transparent;cursor:pointer;transition:all .15s;
+  flex-shrink:0;letter-spacing:.3px;margin-left:4px;
+  display:inline-flex;align-items:center;gap:3px;
+}
+.src-btn:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,.06)}
+
+/* Token grid */
+.ptok-grid{display:flex;flex-wrap:wrap;gap:3px;padding:4px 0}
+.ptok{font-size:9px;padding:2px 6px;border:1px solid;cursor:default;transition:transform .1s}
+.ptok:hover{transform:scale(1.06)}
+
+/* IR rows */
+.pir-row{display:flex;gap:10px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:10.5px;font-family:'Share Tech Mono',monospace}
+.pir-i  {color:var(--dim);min-width:26px;font-size:9.5px}
+.pir-op {color:var(--magenta);min-width:155px}
+.pir-a  {color:var(--yellow)}
+
+/* AST */
+.past pre{font-size:10px;color:var(--bright);white-space:pre-wrap;word-break:break-all;line-height:1.6}
+/* Semantic */
+.psem-ok{color:var(--green);font-size:11px;padding:4px 0}
+.psem-w {color:var(--yellow);padding:2px 0;font-size:10.5px}
+.psem-e {color:var(--magenta);padding:2px 0;font-size:10.5px}
+/* Optimizer notes */
+.popt-note{color:var(--orange);font-size:10.5px;padding:2px 0 2px 8px;border-left:2px solid var(--orange);margin:1px 0}
+/* CodeGen grid */
+.pcg-table{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:11px;margin-top:4px}
+.pcg-lbl{color:var(--dim)}
+.pcg-val{color:var(--cyan)}
+
+/* ── Status Bar ── */
+.sbar{flex-shrink:0;height:22px;background:var(--bg2);border-top:1px solid var(--bg3);
+  display:flex;align-items:center;padding:0 14px;gap:16px;font-size:9px;color:var(--dim)}
+.s-dot{width:6px;height:6px;border-radius:50%;background:var(--dim);flex-shrink:0}
+.s-dot.g{background:var(--green);box-shadow:var(--gg)}
+.s-dot.r{background:var(--magenta);box-shadow:var(--gm)}
+.s-dot.y{background:var(--yellow);box-shadow:var(--gy)}
+.s-item{display:flex;align-items:center;gap:5px}
+.sbar-right{margin-left:auto;font-size:8px}
+#be-badge{font-size:8px;padding:1px 5px;border:1px solid;border-radius:2px}
+#be-badge.be-on{color:var(--green);border-color:var(--green)}
+#be-badge.be-off{color:var(--dim);border-color:var(--dim)}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg0)}
+::-webkit-scrollbar-thumb{background:var(--bg3)}
+::-webkit-scrollbar-thumb:hover{background:var(--dim)}
+
+/* ── Blink cursor ── */
+.cur{display:inline-block;width:8px;height:13px;background:var(--green);
+  animation:bl 1s step-end infinite;vertical-align:middle;margin-left:3px}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── Phase progress ── */
+.phase-bar{display:flex;gap:3px;align-items:center}
+.phase-step{font-family:'Press Start 2P',cursive;font-size:6px;padding:2px 6px;border:1px solid var(--dim);color:var(--dim);transition:all .2s}
+.phase-step.done{color:var(--green);border-color:var(--green);background:rgba(0,255,65,.08)}
+.phase-step.active{color:var(--yellow);border-color:var(--yellow);background:rgba(255,238,0,.06);animation:pulse .5s ease-in-out infinite}
+.phase-step.error{color:var(--magenta);border-color:var(--magenta);background:rgba(255,0,110,.08)}
+.phase-arrow{color:var(--dim);font-size:8px}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ HEADER -->
+<header class="hdr">
+  <div>
+    <div class="logo">Pixel<em>Forge</em><span class="cur"></span></div>
+    <div class="logo-sub">RETRO PIXEL ART DSL COMPILER v1.0</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:5px;align-items:center;border:1px solid rgba(0, 229, 255, 0.3);padding:8px 24px;background:rgba(0, 229, 255, 0.05);box-shadow:0 0 15px rgba(0, 229, 255, 0.1);">
+    <div style="font-family:'Press Start 2P',cursive;font-size:10px;color:var(--cyan);text-shadow:var(--gc);letter-spacing:2px;animation:pulse 2s infinite">/// CORE ONLINE \\\</div>
+    <div style="font-size:7px;color:var(--dim);letter-spacing:4px">PIXELFORGE ENGINE V1.0</div>
+  </div>
+  <div class="hdr-team">
+    <span>CS4031 · COMPILER CONSTRUCTION · SPRING 2026</span><br>
+    Minaal Fatima Jilani &nbsp;·&nbsp; Wania Fatima &nbsp;·&nbsp; Sameer Rajani
+  </div>
+</header>
+
+<!-- ============================ -->
+<div class="mode-banner">
+  <div class="mode-dot" id="mode-dot"></div>
+  <span id="mode-label">MODE: <span id="mode-text">INITIALIZING...</span></span>
+  <div class="mode-right">
+    <div class="be-toggle">
+      <span>Python Backend</span>
+      <div class="tog on" id="be-tog" onclick="toggleBackend()"></div>
+    </div>
+    <span style="color:var(--dim)">URL:</span>
+    <input type="text" id="backend-url-input" value="http://localhost:5000" placeholder="http://localhost:5000">
+    <button class="btn btn-sec" style="font-size:6px;padding:3px 7px" onclick="pingBackend()">PING</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ MAIN -->
+<div class="main minimized-debug">
+
+  <!-- ─── LEFT COL ─── -->
+  <div class="left-col">
+    <div class="ph">
+      <div class="ph-title">Source Code Editor</div>
+      <div class="samples">
+        <span class="smp-label">SAMPLES:</span>
+        <button class="chip" onclick="loadSample('basic')">Basic</button>
+        <button class="chip" onclick="loadSample('smiley')">Smiley</button>
+        <button class="chip" onclick="loadSample('spaceship')">Spaceship</button>
+        <button class="chip" onclick="loadSample('rainbow')">Rainbow</button>
+        <button class="chip" onclick="loadSample('logo')">Logo</button>
+      </div>
+    </div>
+
+    <div class="editor-wrap">
+      <div class="ln" id="ln">1</div>
+      <textarea id="editor" spellcheck="false" placeholder="# Write PixelForge code here...&#10;# Ctrl+Enter to compile&#10;&#10;canvas 16 16&#10;color red&#10;draw square 4 4 6&#10;animate move right 3"></textarea>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn btn-run" id="compile-btn" onclick="compile()">⚡ COMPILE &amp; RUN</button>
+      <button class="btn btn-sec" onclick="clearEditor()">CLEAR</button>
+      <button class="btn btn-dng" onclick="resetAll()">RESET</button>
+      <span class="charcount" id="charcount">0 chars</span>
+    </div>
+
+    <div class="msg-area" id="msgs">
+      <div class="msg msg-ok"><span class="msg-icon">✦</span><span>PixelForge Compiler ready — select a sample or write code, then click COMPILE &amp; RUN.</span></div>
+    </div>
+  </div>
+
+  <!-- ─── RIGHT COL ─── -->
+  <div class="right-col">
+    <div class="ph">
+      <div class="ph-title">Canvas Output</div>
+      <div class="canvas-ph">
+        <div class="toggle-wrap">
+          <div class="tog on" id="grid-tog" onclick="toggleGrid()"></div>
+          <span>Grid</span>
+        </div>
+        <button class="btn btn-sec" style="font-size:6px;padding:5px 9px" onclick="exportPNG()">⬇ PNG</button>
+      </div>
+    </div>
+    <div class="canvas-body">
+      <canvas id="px-canvas" width="400" height="400"></canvas>
+      <div class="canvas-info" id="cinfo">No canvas defined · compile to see output</div>
+      <div class="anim-bar" id="anim-bar" style="display:none">
+        <button class="anim-btn" onclick="prevFrame()" title="Prev frame">◀</button>
+        <button class="anim-btn" id="play-btn" onclick="togglePlay()" title="Play">▶</button>
+        <button class="anim-btn" onclick="nextFrame()" title="Next frame">▶|</button>
+        <span class="fc" id="fc">Frame 1 / 1</span>
+        <span class="spd">FPS</span>
+        <input type="range" id="spd-range" min="1" max="24" value="6">
+        <span id="spd-val">6</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── DEBUG COL ─── -->
+  <div class="debug-col">
+    <div class="tab-row">
+      <button class="tab on" id="tab-pipeline" onclick="switchTab(this,'pipeline')">PIPELINE</button>
+      <button class="tab" onclick="switchTab(this,'source');loadSourceCode()">SOURCE</button>
+      <button class="tab" onclick="switchTab(this,'ref')">LANG REF</button>
+      <button class="tab tab-minimize" id="toggle-debug-btn" onclick="toggleDebugPanel()">▲ EXPAND</button>
+    </div>
+        <div id="tc-ref" class="tc">
+      <div style="font-family:'Press Start 2P',cursive;font-size:7px;color:var(--cyan);margin-bottom:14px;letter-spacing:1px">PIXELFORGE DSL &mdash; LANGUAGE REFERENCE</div>
+      <div class="ref-grid">
+        <span class="ref-cmd">canvas <em>W H</em></span><span class="ref-desc">Define a W&times;H pixel canvas (max 256&times;256). Must be first statement.</span>
+        <span class="ref-cmd">color <em>name</em></span><span class="ref-desc">Set pen color by name: <em>red green blue yellow cyan magenta orange purple pink white black gray lime brown</em></span>
+        <span class="ref-cmd">color <em>rgb(R,G,B)</em></span><span class="ref-desc">Set pen color to custom RGB value &mdash; each component 0&ndash;255</span>
+        <span class="ref-cmd">fill <em>color</em></span><span class="ref-desc">Flood-fill entire canvas with a background color (named or rgb)</span>
+        <span class="ref-cmd">&mdash; SHAPES &mdash;</span><span class="ref-desc"></span>
+        <span class="ref-cmd">draw pixel <em>X Y</em></span><span class="ref-desc">Draw a single pixel at coordinate (X, Y)</span>
+        <span class="ref-cmd">draw square <em>X Y S</em></span><span class="ref-desc">Draw a filled S&times;S square with top-left corner at (X, Y)</span>
+        <span class="ref-cmd">draw rect <em>X Y W H</em></span><span class="ref-desc">Draw a filled W&times;H rectangle with top-left corner at (X, Y)</span>
+        <span class="ref-cmd">draw circle <em>X Y R</em></span><span class="ref-desc">Draw a filled circle centered at (X, Y) with radius R (Bresenham midpoint)</span>
+        <span class="ref-cmd">draw line <em>X1 Y1 X2 Y2</em></span><span class="ref-desc">Draw a pixel-perfect line from (X1,Y1) to (X2,Y2) using Bresenham&apos;s algorithm</span>
+        <span class="ref-cmd">draw triangle <em>X1 Y1 X2 Y2 X3 Y3</em></span><span class="ref-desc">Draw a filled triangle with the three given vertices (scanline fill)</span>
+        <span class="ref-cmd">&mdash; ANIMATION &mdash;</span><span class="ref-desc"></span>
+        <span class="ref-cmd">animate move <em>DIR N</em></span><span class="ref-desc">Animate all shapes moving in direction DIR (left / right / up / down) for N steps/frames</span>
+        <span class="ref-cmd">&mdash; OTHER &mdash;</span><span class="ref-desc"></span>
+        <span class="ref-cmd"># comment</span><span class="ref-desc">Everything after # on a line is ignored by the lexer</span>
+      </div>
+    </div>
+    <!-- SOURCE CODE TAB -->
+    <div id="tc-source">
+      <div class="src-file-bar">
+        <span style="font-family:'Press Start 2P',cursive;font-size:7px;color:var(--dim);align-self:center;margin-right:4px">FILE:</span>
+        <button class="src-chip active" id="src-chip-app.py"               onclick="showSrcFile('app.py')">app.py</button>
+        <button class="src-chip"        id="src-chip-lexer.py"             onclick="showSrcFile('lexer.py')">lexer.py</button>
+        <button class="src-chip"        id="src-chip-parser.py"            onclick="showSrcFile('parser.py')">parser.py</button>
+        <button class="src-chip"        id="src-chip-semantic_analyzer.py" onclick="showSrcFile('semantic_analyzer.py')">semantic.py</button>
+        <button class="src-chip"        id="src-chip-ir_generator.py"      onclick="showSrcFile('ir_generator.py')">ir_gen.py</button>
+        <button class="src-chip"        id="src-chip-optimizer.py"         onclick="showSrcFile('optimizer.py')">optimizer.py</button>
+        <span id="src-lines-badge" style="margin-left:auto;font-size:9px;color:var(--dim)"></span>
+      </div>
+      <div class="src-code-wrap" id="src-code-wrap">
+        <div class="src-load-msg">
+          <span class="mode-dot" style="background:var(--dim)"></span>
+          <span>Click SOURCE CODE tab to load compiler filesâ€¦</span>
+        </div>
+      </div>
+    </div>
+    <!-- PIPELINE TAB — 6-phase compiler pipeline -->
+    <div id="tc-pipeline">
+      <div class="pipe-wrap">
+
+        <!-- ── Flow Diagram ── -->
+        <div class="pipe-flow-section">
+          <div class="pipe-flow-label">COMPILER PIPELINE — SOURCE CODE TO TARGET CODE</div>
+          <div class="pipe-flow-row">
+
+            <div class="pipe-node" id="pn-lexer" onclick="pCardToggle('lexer')" title="Phase 1: Lexical Analysis">
+              <span class="pn-num">1</span>
+              <span class="pn-name">LEXER</span>
+              <span class="pn-stat" id="pn-lexer-stat">idle</span>
+            </div>
+            <span class="pipe-arrow" id="pa-1">&#x25B6;</span>
+
+            <div class="pipe-node" id="pn-parser" onclick="pCardToggle('parser')" title="Phase 2: Syntax Analysis">
+              <span class="pn-num">2</span>
+              <span class="pn-name">PARSER</span>
+              <span class="pn-stat" id="pn-parser-stat">idle</span>
+            </div>
+            <span class="pipe-arrow" id="pa-2">&#x25B6;</span>
+
+            <div class="pipe-node" id="pn-semant" onclick="pCardToggle('semant')" title="Phase 3: Semantic Analysis">
+              <span class="pn-num">3</span>
+              <span class="pn-name">SEMANTIC</span>
+              <span class="pn-stat" id="pn-semant-stat">idle</span>
+            </div>
+            <span class="pipe-arrow" id="pa-3">&#x25B6;</span>
+
+            <div class="pipe-node" id="pn-ir" onclick="pCardToggle('ir')" title="Phase 4: Intermediate Code Generation">
+              <span class="pn-num">4</span>
+              <span class="pn-name">INTER. CODE GEN</span>
+              <span class="pn-stat" id="pn-ir-stat">idle</span>
+            </div>
+            <span class="pipe-arrow" id="pa-4">&#x25B6;</span>
+
+            <div class="pipe-node" id="pn-opt" onclick="pCardToggle('opt')" title="Phase 5: Code Optimization">
+              <span class="pn-num">5</span>
+              <span class="pn-name">CODE OPTIMIZER</span>
+              <span class="pn-stat" id="pn-opt-stat">idle</span>
+            </div>
+            <span class="pipe-arrow" id="pa-5">&#x25B6;</span>
+
+            <div class="pipe-node" id="pn-codegen" onclick="pCardToggle('codegen')" title="Phase 6: Target Code Generation">
+              <span class="pn-num">6</span>
+              <span class="pn-name">TARGET CODE GEN</span>
+              <span class="pn-stat" id="pn-codegen-stat">idle</span>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── Collapsible Phase Cards ── -->
+        <div class="pipe-cards">
+
+          <!-- 1. LEXER -->
+          <div class="pipe-card pc-idle" id="pc-lexer">
+            <div class="pipe-card-hdr" onclick="pCardToggle('lexer')">
+              <span class="pcard-num">01</span>
+              <span class="pcard-title" style="color:var(--cyan)">LEXER</span>
+              <span class="pcard-sub" id="pc-lexer-meta">Lexical Analysis &mdash; Tokenisation</span>
+              <span class="pcard-badge" id="pc-lexer-badge">IDLE</span>
+                            <span class="pcard-chevron" id="pc-lexer-chev">&#x25B6;</span>
+            </div>
+            <div class="pipe-card-body" id="pc-lexer-body">
+              <div style="color:var(--dim)">Compile to see the token stream...</div>
+            </div>
+          </div>
+
+          <!-- 2. PARSER -->
+          <div class="pipe-card pc-idle" id="pc-parser">
+            <div class="pipe-card-hdr" onclick="pCardToggle('parser')">
+              <span class="pcard-num">02</span>
+              <span class="pcard-title" style="color:var(--green)">PARSER</span>
+              <span class="pcard-sub" id="pc-parser-meta">Syntax Analysis &mdash; AST Construction</span>
+              <span class="pcard-badge" id="pc-parser-badge">IDLE</span>
+                            <span class="pcard-chevron" id="pc-parser-chev">&#x25B6;</span>
+            </div>
+            <div class="pipe-card-body" id="pc-parser-body">
+              <div style="color:var(--dim)">Compile to see the Abstract Syntax Tree...</div>
+            </div>
+          </div>
+
+          <!-- 3. SEMANTIC ANALYZER -->
+          <div class="pipe-card pc-idle" id="pc-semant">
+            <div class="pipe-card-hdr" onclick="pCardToggle('semant')">
+              <span class="pcard-num">03</span>
+              <span class="pcard-title" style="color:var(--yellow)">SEMANTIC ANALYZER</span>
+              <span class="pcard-sub" id="pc-semant-meta">Semantic Analysis &mdash; Type &amp; Scope Checks</span>
+              <span class="pcard-badge" id="pc-semant-badge">IDLE</span>
+                            <span class="pcard-chevron" id="pc-semant-chev">&#x25B6;</span>
+            </div>
+            <div class="pipe-card-body" id="pc-semant-body">
+              <div style="color:var(--dim)">Compile to see semantic analysis results...</div>
+            </div>
+          </div>
+
+          <!-- 4. INTERMEDIATE CODE GENERATOR -->
+          <div class="pipe-card pc-idle" id="pc-ir">
+            <div class="pipe-card-hdr" onclick="pCardToggle('ir')">
+              <span class="pcard-num">04</span>
+              <span class="pcard-title" style="color:var(--magenta)">INTERMEDIATE CODE GENERATOR</span>
+              <span class="pcard-sub" id="pc-ir-meta">IR Generation &mdash; Three-Address Code</span>
+              <span class="pcard-badge" id="pc-ir-badge">IDLE</span>
+                            <span class="pcard-chevron" id="pc-ir-chev">&#x25B6;</span>
+            </div>
+            <div class="pipe-card-body" id="pc-ir-body">
+              <div style="color:var(--dim)">Compile to see intermediate code instructions...</div>
+            </div>
+          </div>
+
+          <!-- 5. CODE OPTIMIZER -->
+          <div class="pipe-card pc-idle" id="pc-opt">
+            <div class="pipe-card-hdr" onclick="pCardToggle('opt')">
+              <span class="pcard-num">05</span>
+              <span class="pcard-title" style="color:var(--orange)">CODE OPTIMIZER</span>
+              <span class="pcard-sub" id="pc-opt-meta">Optimization &mdash; Dead Code &amp; Redundancy Elimination</span>
+              <span class="pcard-badge" id="pc-opt-badge">IDLE</span>
+                            <span class="pcard-chevron" id="pc-opt-chev">&#x25B6;</span>
+            </div>
+            <div class="pipe-card-body" id="pc-opt-body">
+              <div style="color:var(--dim)">Compile to see optimizer output...</div>
+            </div>
+          </div>
+
+          <!-- 6. TARGET CODE GENERATION -->
+          <div class="pipe-card pc-idle" id="pc-codegen">
+            <div class="pipe-card-hdr" onclick="pCardToggle('codegen')">
+              <span class="pcard-num">06</span>
+              <span class="pcard-title" style="color:var(--cyan)">TARGET CODE GENERATION</span>
+              <span class="pcard-sub" id="pc-codegen-meta">Code Generation &mdash; Canvas Pixel Rendering</span>
+              <span class="pcard-badge" id="pc-codegen-badge">IDLE</span>
+                            <span class="pcard-chevron" id="pc-codegen-chev">&#x25B6;</span>
+            </div>
+            <div class="pipe-card-body" id="pc-codegen-body">
+              <div style="color:var(--dim)">Compile to see generated pixel output...</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STATUS BAR -->
+<div class="sbar">
+  <div class="s-item"><div class="s-dot g" id="sdot"></div><span id="stext">READY</span></div>
+  <div class="s-item"><span id="s-tok">TOKENS: —</span></div>
+  <div class="s-item"><span id="s-frames">FRAMES: —</span></div>
+  <div class="s-item"><span id="s-canvas">CANVAS: —</span></div>
+  <div class="s-item"><span id="s-ir">IR: —</span></div>
+  <div class="s-item"><span id="s-opt">OPT: —</span></div>
+  <span id="be-badge" class="be-off">JS</span>
+  <div class="sbar-right">PixelForge DSL Compiler · Minaal · Wania · Sameer · Spring 2026</div>
+</div>
+
+<script>
+// =============================================================
+//  PIXELFORGE COMPILER — CS4031 Compiler Construction
+//  Spring 2026 · Full-stack: Python backend + JS frontend
+//  Phases: Lexer â†’ Parser â†’ Semantic â†’ IR â†’ Optimizer â†’ CodeGen
+// =============================================================
+
+// ─── Backend state ───────────────────────────────────────────
+
+function toggleDebugPanel() {
+  const main = document.querySelector('.main');
+  const btn = document.getElementById('toggle-debug-btn');
+  main.classList.toggle('minimized-debug');
+  if (main.classList.contains('minimized-debug')) {
+    btn.textContent = '▲ EXPAND';
+  } else {
+    btn.textContent = '▼ MINIMIZE';
+  }
+}
+function expandDebugPanel() {
+  const main = document.querySelector('.main');
+  main.classList.remove('minimized-debug');
+  const btn = document.getElementById('toggle-debug-btn');
+  if(btn) btn.textContent = '▼ MINIMIZE';
+}
+
+let USE_BACKEND = true;
+let BACKEND_CONNECTED = false;
+let BACKEND_URL = 'http://localhost:5000';
+
+// ─────────────────────────────────────────────────────────────
+//  PHASE 1: LEXER (JS fallback)
+// ─────────────────────────────────────────────────────────────
+const KEYWORDS = {
+  canvas:'CANVAS',color:'COLOR',draw:'DRAW',animate:'ANIMATE',fill:'FILL',
+  pixel:'PIXEL',square:'SQUARE',line:'LINE',circle:'CIRCLE',rect:'RECT',triangle:'TRIANGLE',move:'MOVE',
+  left:'DIRECTION',right:'DIRECTION',up:'DIRECTION',down:'DIRECTION',
+  rgb:'RGB',
+  red:'COLOR_NAME',green:'COLOR_NAME',blue:'COLOR_NAME',yellow:'COLOR_NAME',
+  white:'COLOR_NAME',black:'COLOR_NAME',cyan:'COLOR_NAME',magenta:'COLOR_NAME',
+  orange:'COLOR_NAME',purple:'COLOR_NAME',pink:'COLOR_NAME',gray:'COLOR_NAME',
+  grey:'COLOR_NAME',brown:'COLOR_NAME',lime:'COLOR_NAME',
+};
+class Lexer {
+  constructor(src){ this.src=src; this.pos=0; this.line=1; this.col=1; this.tokens=[]; }
+  tokenize(){
+    while(this.pos<this.src.length){
+      this._skipWS();
+      if(this.pos>=this.src.length) break;
+      const ch=this.src[this.pos];
+      if(/\d/.test(ch)) this._num();
+      else if(/[a-zA-Z_]/.test(ch)) this._word();
+      else if(ch==='('){this._push('LPAREN','(');this.pos++;this.col++;}
+      else if(ch===')'){this._push('RPAREN',')');this.pos++;this.col++;}
+      else if(ch===','){this._push('COMMA',',');this.pos++;this.col++;}
+      else throw new Error(`[Lexer] Unexpected char '${ch}' at L${this.line}:C${this.col}`);
+    }
+    this._push('EOF','<EOF>');
+    return this.tokens;
+  }
+  _push(t,v){this.tokens.push({type:t,value:v,line:this.line,col:this.col});}
+  _skipWS(){
+    while(this.pos<this.src.length){
+      const c=this.src[this.pos];
+      if(c===' '||c==='\t'||c==='\r'){this.pos++;this.col++;}
+      else if(c==='\n'){this.pos++;this.line++;this.col=1;}
+      else if(c==='#'){while(this.pos<this.src.length&&this.src[this.pos]!=='\n')this.pos++;}
+      else break;
+    }
+  }
+  _num(){
+    const sl=this.line,sc=this.col,s=this.pos;
+    while(this.pos<this.src.length&&/\d/.test(this.src[this.pos])){this.pos++;this.col++;}
+    this.tokens.push({type:'NUMBER',value:parseInt(this.src.slice(s,this.pos)),line:sl,col:sc});
+  }
+  _word(){
+    const sl=this.line,sc=this.col,s=this.pos;
+    while(this.pos<this.src.length&&/[a-zA-Z_]/.test(this.src[this.pos])){this.pos++;this.col++;}
+    const w=this.src.slice(s,this.pos).toLowerCase();
+    this.tokens.push({type:KEYWORDS[w]||'IDENTIFIER',value:w,line:sl,col:sc});
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  PHASE 2: PARSER (JS fallback)
+// ─────────────────────────────────────────────────────────────
+class Parser {
+  constructor(toks){this.toks=toks;this.pos=0;}
+  cur(){return this.toks[this.pos];}
+  err(msg){return new Error(`[Parser] ${msg} (line ${this.cur().line})`);}
+  eat(type){
+    const t=this.cur();
+    if(t.type!==type)throw this.err(`Expected ${type}, got ${t.type} ('${t.value}')`);
+    this.pos++;return t;
+  }
+  parse(){
+    const body=[];
+    while(this.cur().type!=='EOF')body.push(this.parseStmt());
+    return {type:'Program',body};
+  }
+  parseStmt(){
+    const t=this.cur();
+    switch(t.type){
+      case 'CANVAS': return this.parseCanvas();
+      case 'COLOR':  return this.parseColor();
+      case 'FILL':   return this.parseFill();
+      case 'DRAW':   return this.parseDraw();
+      case 'ANIMATE':return this.parseAnimate();
+      default:throw this.err(`Unexpected token '${t.value}' (${t.type})`);
+    }
+  }
+  parseCanvas(){const t=this.eat('CANVAS'),w=this.eat('NUMBER'),h=this.eat('NUMBER');return{type:'CanvasStmt',width:w.value,height:h.value,line:t.line};}
+  parseColorVal(){
+    if(this.cur().type==='COLOR_NAME'){const c=this.eat('COLOR_NAME');return{colorType:'named',value:c.value};}
+    if(this.cur().type==='RGB'){
+      this.eat('RGB');this.eat('LPAREN');
+      const r=this.eat('NUMBER');this.eat('COMMA');
+      const g=this.eat('NUMBER');this.eat('COMMA');
+      const b=this.eat('NUMBER');this.eat('RPAREN');
+      return{colorType:'rgb',r:r.value,g:g.value,b:b.value};
+    }
+    throw this.err(`Expected color name or rgb(...), got '${this.cur().value}'`);
+  }
+  parseColor(){const t=this.eat('COLOR');return{type:'ColorStmt',...this.parseColorVal(),line:t.line};}
+  parseFill(){const t=this.eat('FILL');return{type:'FillStmt',...this.parseColorVal(),line:t.line};}
+  parseDraw(){
+    const t=this.eat('DRAW'),cmd=this.cur();
+    if(cmd.type==='PIXEL'){this.eat('PIXEL');const x=this.eat('NUMBER'),y=this.eat('NUMBER');return{type:'DrawStmt',shape:'pixel',x:x.value,y:y.value,line:t.line};}
+    if(cmd.type==='SQUARE'){this.eat('SQUARE');const x=this.eat('NUMBER'),y=this.eat('NUMBER'),s=this.eat('NUMBER');return{type:'DrawStmt',shape:'square',x:x.value,y:y.value,size:s.value,line:t.line};}
+    if(cmd.type==='RECT'){this.eat('RECT');const x=this.eat('NUMBER'),y=this.eat('NUMBER'),w=this.eat('NUMBER'),h=this.eat('NUMBER');return{type:'DrawStmt',shape:'rect',x:x.value,y:y.value,w:w.value,h:h.value,line:t.line};}
+    if(cmd.type==='CIRCLE'){this.eat('CIRCLE');const x=this.eat('NUMBER'),y=this.eat('NUMBER'),r=this.eat('NUMBER');return{type:'DrawStmt',shape:'circle',x:x.value,y:y.value,r:r.value,line:t.line};}
+    if(cmd.type==='TRIANGLE'){this.eat('TRIANGLE');const x1=this.eat('NUMBER'),y1=this.eat('NUMBER'),x2=this.eat('NUMBER'),y2=this.eat('NUMBER'),x3=this.eat('NUMBER'),y3=this.eat('NUMBER');return{type:'DrawStmt',shape:'triangle',x1:x1.value,y1:y1.value,x2:x2.value,y2:y2.value,x3:x3.value,y3:y3.value,line:t.line};}
+    if(cmd.type==='LINE'){this.eat('LINE');const x1=this.eat('NUMBER'),y1=this.eat('NUMBER'),x2=this.eat('NUMBER'),y2=this.eat('NUMBER');return{type:'DrawStmt',shape:'line',x1:x1.value,y1:y1.value,x2:x2.value,y2:y2.value,line:t.line};}
+    throw this.err(`Unknown draw command '${cmd.value}'`);
+  }
+  parseAnimate(){const t=this.eat('ANIMATE');this.eat('MOVE');const d=this.eat('DIRECTION'),n=this.eat('NUMBER');return{type:'AnimateStmt',direction:d.value,steps:n.value,line:t.line};}
+}
+
+// ─────────────────────────────────────────────────────────────
+//  PHASE 3: SEMANTIC ANALYZER (JS fallback)
+// ─────────────────────────────────────────────────────────────
+class Semantic {
+  constructor(ast){this.ast=ast;this.errs=[];this.warns=[];this.cw=0;this.ch=0;this.hasCanvas=false;this.hasColor=false;}
+  analyze(){for(const n of this.ast.body)this.check(n);return{errors:this.errs,warnings:this.warns};}
+  E(msg,line){this.errs.push({message:msg,line});}
+  W(msg,line){this.warns.push({message:msg,line});}
+  check(n){
+    switch(n.type){
+      case 'CanvasStmt':
+        if(this.hasCanvas)this.W('Canvas redefinition — previous canvas replaced',n.line);
+        if(n.width<=0||n.height<=0)this.E('Canvas dimensions must be positive',n.line);
+        else if(n.width>256||n.height>256)this.E('Canvas too large — max 256Ã—256',n.line);
+        this.cw=n.width;this.ch=n.height;this.hasCanvas=true;break;
+      case 'ColorStmt':case 'FillStmt':
+        if(!this.hasCanvas)this.W('Color set before canvas definition',n.line);
+        if(n.colorType==='rgb'&&[n.r,n.g,n.b].some(v=>v<0||v>255))
+          this.E(`RGB values must be 0–255, got rgb(${n.r},${n.g},${n.b})`,n.line);
+        this.hasColor=true;break;
+      case 'DrawStmt':
+        if(!this.hasCanvas){this.E('Must define canvas before drawing',n.line);break;}
+        if(!this.hasColor)this.W('Drawing without setting color (defaults to white)',n.line);
+        if(n.shape==='pixel'&&(n.x<0||n.x>=this.cw||n.y<0||n.y>=this.ch))
+          this.E(`Pixel (${n.x},${n.y}) out of bounds for ${this.cw}Ã—${this.ch} canvas`,n.line);
+        if(n.shape==='square'){
+          if(n.size<=0)this.E('Square size must be positive',n.line);
+          if(n.x<0||n.y<0)this.E('Square position cannot be negative',n.line);
+          if(n.x+n.size>this.cw||n.y+n.size>this.ch)
+            this.W(`Square at (${n.x},${n.y}) size ${n.size} clips canvas edge`,n.line);
+        }
+        if(n.shape==='line')
+          for(const[x,y]of[[n.x1,n.y1],[n.x2,n.y2]])
+            if(x<0||x>=this.cw||y<0||y>=this.ch)
+              this.W(`Line endpoint (${x},${y}) outside canvas bounds`,n.line);
+        break;
+      case 'AnimateStmt':
+        if(!this.hasCanvas)this.E('Must define canvas before animating',n.line);
+        if(n.steps<=0)this.E('Animation steps must be positive',n.line);
+        if(n.steps>64)this.W(`${n.steps} animation steps may be slow to render`,n.line);
+        break;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  PHASE 4: IR GENERATOR (JS fallback)
+// ─────────────────────────────────────────────────────────────
+class IRGen {
+  gen(ast){
+    const ir=[];
+    for(const n of ast.body){
+      switch(n.type){
+        case 'CanvasStmt':ir.push({op:'INIT_CANVAS',args:[n.width,n.height]});break;
+        case 'ColorStmt':
+          if(n.colorType==='named')ir.push({op:'SET_COLOR',args:[n.value]});
+          else ir.push({op:'SET_COLOR_RGB',args:[n.r,n.g,n.b]});break;
+        case 'FillStmt':
+          if(n.colorType==='named')ir.push({op:'FILL_CANVAS',args:[n.value]});
+          else ir.push({op:'FILL_CANVAS_RGB',args:[n.r,n.g,n.b]});break;
+        case 'DrawStmt':
+          if(n.shape==='pixel')ir.push({op:'DRAW_PIXEL',args:[n.x,n.y]});
+          if(n.shape==='square')ir.push({op:'DRAW_SQUARE',args:[n.x,n.y,n.size]});
+          if(n.shape==='rect')ir.push({op:'DRAW_RECT',args:[n.x,n.y,n.w,n.h]});
+          if(n.shape==='circle')ir.push({op:'DRAW_CIRCLE',args:[n.x,n.y,n.r]});
+          if(n.shape==='triangle')ir.push({op:'DRAW_TRIANGLE',args:[n.x1,n.y1,n.x2,n.y2,n.x3,n.y3]});
+          if(n.shape==='line')ir.push({op:'DRAW_LINE',args:[n.x1,n.y1,n.x2,n.y2]});break;
+        case 'AnimateStmt':ir.push({op:'ANIMATE_MOVE',args:[n.direction,n.steps]});break;
+      }
+    }
+    return ir;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  PHASE 5: JS OPTIMIZER (mirrors Python optimizer logic)
+// ─────────────────────────────────────────────────────────────
+class Optimizer {
+  constructor(ir){this.ir=JSON.parse(JSON.stringify(ir));this.notes=[];this.removed=0;}
+  optimize(){
+    this._passRedundantCanvas();
+    this._passDeadColor();
+    this._passRedundantFill();
+    this._passZeroStepAnimate();
+    this._passOOBDraw();
+    this._passDuplicateDraw();
+    return{ir:this.ir,notes:this.notes,removed:this.removed};
+  }
+  _canvasSize(){for(let i=this.ir.length-1;i>=0;i--)if(this.ir[i].op==='INIT_CANVAS')return this.ir[i].args;return[0,0];}
+  _passRedundantCanvas(){
+    const idx=this.ir.map((ins,i)=>ins.op==='INIT_CANVAS'?i:-1).filter(i=>i>=0);
+    if(idx.length<=1)return;
+    const rem=new Set(idx.slice(0,-1));
+    const n=rem.size;
+    this.ir=this.ir.filter((_,i)=>!rem.has(i));
+    this.notes.push(`Removed ${n} redundant INIT_CANVAS instruction(s).`);this.removed+=n;
+  }
+  _passDeadColor(){
+    const COLOR_OPS=new Set(['SET_COLOR','SET_COLOR_RGB']);
+    const DRAW_OPS=new Set(['DRAW_PIXEL','DRAW_SQUARE','DRAW_LINE','DRAW_RECT','DRAW_CIRCLE','DRAW_TRIANGLE']);
+    const newIR=[];let removed=0;
+    for(let i=0;i<this.ir.length;i++){
+      const ins=this.ir[i];
+      if(COLOR_OPS.has(ins.op)){
+        let used=false;
+        for(let j=i+1;j<this.ir.length;j++){
+          if(DRAW_OPS.has(this.ir[j].op)){used=true;break;}
+          if(COLOR_OPS.has(this.ir[j].op))break;
+        }
+        if(!used){removed++;continue;}
+      }
+      newIR.push(ins);
+    }
+    if(removed){this.notes.push(`Eliminated ${removed} dead SET_COLOR instruction(s).`);this.removed+=removed;}
+    this.ir=newIR;
+  }
+  _passRedundantFill(){
+    const FILL_OPS=new Set(['FILL_CANVAS','FILL_CANVAS_RGB']);
+    const newIR=[];let removed=0;
+    for(let i=0;i<this.ir.length;i++){
+      if(FILL_OPS.has(this.ir[i].op)&&i+1<this.ir.length&&FILL_OPS.has(this.ir[i+1].op)){removed++;continue;}
+      newIR.push(this.ir[i]);
+    }
+    if(removed){this.notes.push(`Collapsed ${removed} redundant FILL_CANVAS instruction(s).`);this.removed+=removed;}
+    this.ir=newIR;
+  }
+  _passZeroStepAnimate(){
+    const before=this.ir.length;
+    this.ir=this.ir.filter(ins=>!(ins.op==='ANIMATE_MOVE'&&ins.args[1]===0));
+    const removed=before-this.ir.length;
+    if(removed){this.notes.push(`Removed ${removed} zero-step ANIMATE_MOVE instruction(s).`);this.removed+=removed;}
+  }
+  _passOOBDraw(){
+    const[W,H]=this._canvasSize();if(!W||!H)return;
+    const newIR=[];let removed=0;
+    for(const ins of this.ir){
+      if(ins.op==='DRAW_PIXEL'){
+        const[x,y]=ins.args;
+        if(!(x>=0&&x<W&&y>=0&&y<H)){this.notes.push(`Pruned out-of-bounds DRAW_PIXEL(${x},${y}) for canvas ${W}Ã—${H}.`);removed++;continue;}
+      }
+      newIR.push(ins);
+    }
+    this.ir=newIR;this.removed+=removed;
+  }
+  _passDuplicateDraw(){
+    const newIR=[];let removed=0,prev=null;
+    for(const ins of this.ir){
+      if(ins.op==='DRAW_PIXEL'&&prev&&prev.op==='DRAW_PIXEL'&&JSON.stringify(prev.args)===JSON.stringify(ins.args)){removed++;continue;}
+      newIR.push(ins);prev=ins;
+    }
+    if(removed){this.notes.push(`Removed ${removed} duplicate DRAW_PIXEL instruction(s).`);this.removed+=removed;}
+    this.ir=newIR;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  PHASE 6: CODE GEN + RUNTIME
+// ─────────────────────────────────────────────────────────────
+class CodeGen {
+  static COLORS={red:'#ff2244',green:'#00cc44',blue:'#2277ff',yellow:'#ffee00',
+    white:'#f0f0f0',black:'#111111',cyan:'#00ddff',magenta:'#ff00bb',
+    orange:'#ff8800',purple:'#aa00ff',pink:'#ff69b4',gray:'#888888',
+    grey:'#888888',brown:'#8b4513',lime:'#aaff00'};
+  static toHex(name){return CodeGen.COLORS[name]||'#ffffff';}
+  static rgbStr(r,g,b){return `rgb(${r},${g},${b})`;}
+  run(ir){
+    let W=16,H=16,color='#ffffff',bg='#0a0a0a';
+    let shapes=[]; const frames=[];
+    const clone=()=>JSON.parse(JSON.stringify(shapes));
+    for(const{op,args}of ir){
+      switch(op){
+        case 'INIT_CANVAS':W=args[0];H=args[1];break;
+        case 'SET_COLOR':color=CodeGen.toHex(args[0]);break;
+        case 'SET_COLOR_RGB':color=CodeGen.rgbStr(...args);break;
+        case 'FILL_CANVAS':bg=CodeGen.toHex(args[0]);shapes.push({t:'fill',c:bg});break;
+        case 'FILL_CANVAS_RGB':bg=CodeGen.rgbStr(...args);shapes.push({t:'fill',c:bg});break;
+        case 'DRAW_PIXEL':shapes.push({t:'px',c:color,x:args[0],y:args[1]});break;
+        case 'DRAW_SQUARE':shapes.push({t:'sq',c:color,x:args[0],y:args[1],s:args[2]});break;
+        case 'DRAW_LINE':shapes.push({t:'ln',c:color,x1:args[0],y1:args[1],x2:args[2],y2:args[3]});break;
+        case 'DRAW_CIRCLE':shapes.push({t:'ci',c:color,x:args[0],y:args[1],r:args[2]});break;
+        case 'DRAW_RECT':shapes.push({t:'rc',c:color,x:args[0],y:args[1],w:args[2],h:args[3]});break;
+        case 'DRAW_TRIANGLE':shapes.push({t:'tr',c:color,x1:args[0],y1:args[1],x2:args[2],y2:args[3],x3:args[4],y3:args[5]});break;
+        case 'ANIMATE_MOVE':{
+          const[dir,steps]=args;
+          const dx=dir==='right'?1:dir==='left'?-1:0;
+          const dy=dir==='down'?1:dir==='up'?-1:0;
+          if(!frames.length)frames.push(clone());
+          for(let s=1;s<=steps;s++){
+            const frame=clone().map(sh=>{
+              if(sh.t==='fill')return sh;
+              const ns={...sh};
+              if(ns.t==='px'){ns.x+=dx*s;ns.y+=dy*s;}
+              if(ns.t==='ci'){ns.x+=dx*s;ns.y+=dy*s;}
+              if(ns.t==='rc'){ns.x+=dx*s;ns.y+=dy*s;}
+              if(ns.t==='tr'){ns.x1+=dx*s;ns.y1+=dy*s;ns.x2+=dx*s;ns.y2+=dy*s;ns.x3+=dx*s;ns.y3+=dy*s;}
+              if(ns.t==='sq'){ns.x+=dx*s;ns.y+=dy*s;}
+              if(ns.t==='ln'){ns.x1+=dx*s;ns.y1+=dy*s;ns.x2+=dx*s;ns.y2+=dy*s;}
+              return ns;
+            });
+            frames.push(frame);
+          }
+          shapes=JSON.parse(JSON.stringify(frames[frames.length-1]));break;
+        }
+      }
+    }
+    if(!frames.length)frames.push(clone());
+    return{W,H,frames,bg};
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RENDERER
+// ─────────────────────────────────────────────────────────────
+class Renderer {
+  constructor(el){this.el=el;this.ctx=el.getContext('2d');this.ps=20;this.W=16;this.H=16;this.grid=true;}
+  setup(W,H){
+    this.W=W;this.H=H;
+    const maxPx=Math.min(480,Math.floor(Math.min(this.el.parentElement.clientWidth-20,this.el.parentElement.clientHeight-60)));
+    this.ps=Math.max(1,Math.floor(Math.min(maxPx/W,maxPx/H)));
+    this.el.width=W*this.ps;this.el.height=H*this.ps;
+  }
+  draw(frame,bg){
+    const ctx=this.ctx,ps=this.ps;
+    ctx.fillStyle=bg||'#0a0a0a';ctx.fillRect(0,0,this.el.width,this.el.height);
+    for(const sh of frame){
+      if(sh.t==='fill'){ctx.fillStyle=sh.c;ctx.fillRect(0,0,this.el.width,this.el.height);continue;}
+      ctx.fillStyle=sh.c;
+      if(sh.t==='px')this.pix(ctx,Math.round(sh.x),Math.round(sh.y),ps);
+      if(sh.t==='sq')for(let dy=0;dy<sh.s;dy++)for(let dx=0;dx<sh.s;dx++)this.pix(ctx,Math.round(sh.x+dx),Math.round(sh.y+dy),ps);
+      if(sh.t==='ln')this.bline(ctx,Math.round(sh.x1),Math.round(sh.y1),Math.round(sh.x2),Math.round(sh.y2),sh.c,ps);
+      if(sh.t==='ci')this.circle(ctx,Math.round(sh.x),Math.round(sh.y),Math.round(sh.r),sh.c,ps);
+      if(sh.t==='rc')for(let dy=0;dy<Math.round(sh.h);dy++)for(let dx=0;dx<Math.round(sh.w);dx++)this.pix(ctx,Math.round(sh.x+dx),Math.round(sh.y+dy),ps);
+      if(sh.t==='tr')this.triangle(ctx,Math.round(sh.x1),Math.round(sh.y1),Math.round(sh.x2),Math.round(sh.y2),Math.round(sh.x3),Math.round(sh.y3),sh.c,ps);
+    }
+    if(this.grid&&ps>=4){
+      ctx.strokeStyle='rgba(0,229,255,0.10)';ctx.lineWidth=0.5;
+      for(let x=0;x<=this.W;x++){ctx.beginPath();ctx.moveTo(x*ps,0);ctx.lineTo(x*ps,this.el.height);ctx.stroke();}
+      for(let y=0;y<=this.H;y++){ctx.beginPath();ctx.moveTo(0,y*ps);ctx.lineTo(this.el.width,y*ps);ctx.stroke();}
+    }
+  }
+  pix(ctx,x,y,ps){if(x>=0&&x<this.W&&y>=0&&y<this.H)ctx.fillRect(x*ps,y*ps,ps,ps);}
+  circle(ctx,cx,cy,r,color,ps){
+    ctx.fillStyle=color;
+    // Midpoint circle algorithm — filled
+    for(let y=-r;y<=r;y++){
+      const half=Math.round(Math.sqrt(r*r-y*y));
+      for(let x=-half;x<=half;x++) this.pix(ctx,cx+x,cy+y,ps);
+    }
+  }
+  triangle(ctx,x1,y1,x2,y2,x3,y3,color,ps){
+    ctx.fillStyle=color;
+    // Scanline fill
+    let pts=[[x1,y1],[x2,y2],[x3,y3]].sort((a,b)=>a[1]-b[1]);
+    const [p0,p1,p2]=pts;
+    const interp=(y,ay,ax,by,bx)=>by===ay?ax:ax+(bx-ax)*(y-ay)/(by-ay);
+    for(let y=p0[1];y<=p2[1];y++){
+      let xa=interp(y,p0[1],p0[0],p2[1],p2[0]);
+      let xb=y<p1[1]?interp(y,p0[1],p0[0],p1[1],p1[0]):interp(y,p1[1],p1[0],p2[1],p2[0]);
+      if(xa>xb)[xa,xb]=[xb,xa];
+      for(let x=Math.round(xa);x<=Math.round(xb);x++) this.pix(ctx,x,y,ps);
+    }
+  }
+  bline(ctx,x1,y1,x2,y2,color,ps){
+    ctx.fillStyle=color;
+    let dx=Math.abs(x2-x1),dy=Math.abs(y2-y1);
+    let sx=x1<x2?1:-1,sy=y1<y2?1:-1,err=dx-dy,limit=2000;
+    while(limit-->0){
+      this.pix(ctx,x1,y1,ps);
+      if(x1===x2&&y1===y2)break;
+      const e2=2*err;
+      if(e2>-dy){err-=dy;x1+=sx;}
+      if(e2<dx){err+=dx;y1+=sy;}
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  SAMPLES
+// ─────────────────────────────────────────────────────────────
+const SAMPLES = {
+  basic:
+`# From the PixelForge proposal
+canvas 16 16
+color red
+draw square 4 4 6
+animate move right 3`,
+  circles:
+`# Circle and rect demo
+canvas 32 32
+fill black
+color cyan
+draw circle 16 16 10
+color orange
+draw rect 4 4 8 6
+color magenta
+draw circle 8 8 4`,
+  triangle_demo:
+`# Triangle demo
+canvas 32 32
+fill black
+color green
+draw triangle 16 2 2 28 30 28
+color yellow
+draw circle 16 2 2`,
+  smiley:
+`# Smiley face pixel art
+canvas 24 24
+fill black
+color yellow
+draw square 4 4 16
+color black
+draw square 8 8 2
+draw square 14 8 2
+draw square 7 15 1
+draw square 8 16 1
+draw square 9 17 3
+draw square 12 17 3
+draw square 13 16 1
+draw square 14 15 1
+animate move up 6`,
+  spaceship:
+`# Flying spaceship animation
+canvas 36 20
+fill black
+color white
+draw square 16 4 4
+color cyan
+draw square 12 8 12
+color blue
+draw square 10 12 16
+color red
+draw square 8 15 4
+draw square 24 15 4
+color orange
+draw pixel 14 18
+draw pixel 15 18
+draw pixel 16 18
+draw pixel 17 18
+draw pixel 18 18
+draw pixel 19 18
+draw pixel 20 18
+draw pixel 21 18
+animate move left 24`,
+  rainbow:
+`# Rainbow stripe canvas
+canvas 24 20
+fill black
+color red
+draw square 0 0 24
+draw square 0 1 24
+color orange
+draw square 0 3 24
+draw square 0 4 24
+color yellow
+draw square 0 6 24
+draw square 0 7 24
+color lime
+draw square 0 9 24
+draw square 0 10 24
+color cyan
+draw square 0 12 24
+draw square 0 13 24
+color blue
+draw square 0 15 24
+draw square 0 16 24
+color magenta
+draw square 0 18 24
+draw square 0 19 24
+animate move left 12`,
+  logo:
+`# PixelForge logo letters P+F
+canvas 30 12
+fill black
+color cyan
+draw line 1 1 1 10
+draw line 1 1 5 1
+draw line 5 1 5 5
+draw line 1 5 5 5
+color magenta
+draw line 10 1 10 10
+draw line 10 1 14 1
+draw line 10 5 14 5
+draw line 14 1 14 4
+animate move right 8`
+};
+
+// ─────────────────────────────────────────────────────────────
+//  UI STATE
+// ─────────────────────────────────────────────────────────────
+const renderer = new Renderer(document.getElementById('px-canvas'));
+let ST = { frames:[], bg:'#0a0a0a', frame:0, playing:false, timer:null, fps:6, grid:true, W:16, H:16 };
+
+// ─────────────────────────────────────────────────────────────
+//  BACKEND INTEGRATION
+// ─────────────────────────────────────────────────────────────
+function getBackendURL() {
+  return document.getElementById('backend-url-input').value.trim().replace(/\/$/, '');
+}
+
+async function pingBackend() {
+  const url = getBackendURL();
+  setModeDot('loading');
+  document.getElementById('mode-text').textContent = 'CONNECTING...';
+  try {
+    const res = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(3000) });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      BACKEND_CONNECTED = true;
+      setModeDot('connected');
+      document.getElementById('mode-text').innerHTML = `<span>PYTHON BACKEND CONNECTED</span> — ${url}`;
+      document.getElementById('be-badge').textContent = 'PY';
+      document.getElementById('be-badge').className = 'be-on';
+      addMsg('ok', `✦ Python backend connected at ${url} — compiler pipeline running on Python.`);
+    }
+  } catch(e) {
+    BACKEND_CONNECTED = false;
+    setModeDot('error');
+    document.getElementById('mode-text').textContent = 'BACKEND OFFLINE — USING JS FALLBACK';
+    document.getElementById('be-badge').textContent = 'JS';
+    document.getElementById('be-badge').className = 'be-off';
+    if (USE_BACKEND) addMsg('warn', `Backend unreachable at ${url}. Using JS fallback. Start: python app.py`);
+  }
+}
+
+function toggleBackend() {
+  USE_BACKEND = !USE_BACKEND;
+  const tog = document.getElementById('be-tog');
+  tog.classList.toggle('on', USE_BACKEND);
+  if (USE_BACKEND) pingBackend();
+  else {
+    setModeDot('error');
+    document.getElementById('mode-text').textContent = 'JS FALLBACK MODE (backend disabled)';
+    document.getElementById('be-badge').textContent = 'JS';
+    document.getElementById('be-badge').className = 'be-off';
+  }
+}
+
+function setModeDot(state) {
+  const dot = document.getElementById('mode-dot');
+  dot.className = `mode-dot ${state === 'connected' ? 'connected' : state === 'error' ? 'error' : 'loading'}`;
+}
+
+async function callBackend(source) {
+  const url = getBackendURL();
+  const res = await fetch(`${url}/api/compile`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ source }),
+    signal: AbortSignal.timeout(10000)
+  });
+  return res.json();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  PIPELINE PHASE HIGHLIGHTS
+// ─────────────────────────────────────────────────────────────
+function resetPhases() {
+  ['lexer','parser','semant','ir','opt'].forEach(p => {
+    const el = document.getElementById(`ph-${p}`);
+    if (el) el.classList.remove('active');
+  });
+}
+function setPhase(name) {
+  resetPhases();
+  const el = document.getElementById(`ph-${name}`);
+  if (el) el.classList.add('active');
+}
+function donePhase(name) {
+  const el = document.getElementById(`ph-${name}`);
+  if (el) { el.classList.remove('active'); }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MAIN COMPILE FUNCTION
+// ─────────────────────────────────────────────────────────────
+async function compile() {
+  const src = document.getElementById('editor').value.trim();
+  if (!src) { addMsg('warn','No source code — write some PixelForge code or load a sample.'); return; }
+
+  setStatus('COMPILING...','y');
+  clearMsgs();
+  pipeReset();
+  document.getElementById('compile-btn').disabled = true;
+
+  let tokens, ast, semResult, irList, optResult;
+  let fromBackend = false;
+
+  // ── Try Python backend first ──────────────────────────────
+  if (USE_BACKEND && BACKEND_CONNECTED) {
+    try {
+      setPhase('lexer');
+      addMsg('info', `↑ Sending source to Python backend (${getBackendURL()})...`);
+      const data = await callBackend(src);
+      fromBackend = true;
+
+      if (data.error && data.phase === 'lexer') {
+        addMsg('err', `[Lexer] ${data.error}`); setStatus('ERROR','r');
+        document.getElementById('compile-btn').disabled = false;
+        resetPhases(); return;
+      }
+
+      setPhase('parser');
+      if (data.error && data.phase === 'parser') {
+        addMsg('err', `[Parser] ${data.error}`); setStatus('ERROR','r');
+        document.getElementById('compile-btn').disabled = false;
+        resetPhases(); return;
+      }
+
+      setPhase('semant');
+      // Show semantic warnings even on success
+      data.semantic.warnings.forEach(w => addMsg('warn', `L${w.line}: ${w.message}`));
+      if (!data.ok && data.phase === 'semantic') {
+        data.semantic.errors.forEach(e => addMsg('err', `L${e.line}: ${e.message}`));
+        setStatus('ERRORS','r');
+        document.getElementById('compile-btn').disabled = false;
+        resetPhases();
+        renderTokensFromBackend(data.tokens);
+        renderASTFromBackend(data.ast);
+        renderSemanticFromBackend(data.semantic);
+        renderIRFromBackend([], [], [], 0);
+        return;
+      }
+
+      setPhase('ir');
+      setPhase('opt');
+
+      // Render debug panels with Python output
+      renderTokensFromBackend(data.tokens);
+      renderASTFromBackend(data.ast);
+      renderSemanticFromBackend(data.semantic);
+      renderIRFromBackend(data.ir, data.ir_optimized, data.optimizer_notes, data.optimizer_removed);
+
+      // Use optimized IR for code generation
+      irList = data.ir_optimized;
+      tokens = data.tokens;
+
+      const tok_count = data.tokens.filter(t => t.type !== 'EOF').length;
+      addMsg('ok', `✦ Python backend compiled OK — ${tok_count} tokens | ${data.ir.length} IR ops | ${data.optimizer_removed} optimized away | ${data.ir_optimized.length} final ops`);
+      document.getElementById('s-tok').textContent  = `TOKENS: ${tok_count}`;
+      document.getElementById('s-ir').textContent   = `IR: ${data.ir.length}`;
+      document.getElementById('s-opt').textContent  = `OPT: -${data.optimizer_removed}`;
+
+      // Update status badges
+      ['lexer','parser','semant','ir','opt'].forEach(p => donePhase(p));
+      // Update pipeline view
+      pipelineFromBackend(data);
+
+    } catch(e) {
+      BACKEND_CONNECTED = false;
+      setModeDot('error');
+      document.getElementById('mode-text').textContent = 'BACKEND OFFLINE — USING JS FALLBACK';
+      addMsg('warn', `Backend error: ${e.message}. Falling back to JS compiler.`);
+      fromBackend = false;
+    }
+  }
+
+  // ── JS fallback (or always if backend not available) ──────
+  if (!fromBackend) {
+    try {
+      setPhase('lexer');
+      const lexer = new Lexer(src);
+      const toks = lexer.tokenize();
+
+      setPhase('parser');
+      const parser = new Parser(toks);
+      ast = parser.parse();
+
+      setPhase('semant');
+      const sem = new Semantic(ast);
+      semResult = sem.analyze();
+      semResult.warnings.forEach(w => addMsg('warn', `L${w.line}: ${w.message}`));
+      if (semResult.errors.length) {
+        semResult.errors.forEach(e => addMsg('err', `L${e.line}: ${e.message}`));
+        setStatus('ERRORS','r');
+        document.getElementById('compile-btn').disabled = false;
+        resetPhases();
+        renderTokens(toks); renderAST(ast);
+        renderSemanticFromBackend(semResult); renderIRFromBackend([],[],[],0);
+        return;
+      }
+
+      setPhase('ir');
+      const jsIR = new IRGen().gen(ast);
+
+      setPhase('opt');
+      const jsOpt = new Optimizer(jsIR).optimize();
+
+      irList = jsOpt.ir;
+      tokens = toks;
+
+      renderTokens(toks);
+      renderAST(ast);
+      renderSemanticFromBackend(semResult);
+      renderIRFromBackend(jsIR, jsOpt.ir, jsOpt.notes, jsOpt.removed);
+      // Update pipeline view
+      pipelineFromJS(toks, ast.body.length, semResult, jsIR, jsOpt);
+
+      addMsg('ok', `✦ JS compiled OK — ${toks.length-1} tokens | ${jsIR.length} IR ops | ${jsOpt.removed} optimized away | ${jsOpt.ir.length} final ops`);
+      document.getElementById('s-tok').textContent  = `TOKENS: ${toks.length-1}`;
+      document.getElementById('s-ir').textContent   = `IR: ${jsIR.length}`;
+      document.getElementById('s-opt').textContent  = `OPT: -${jsOpt.removed}`;
+
+      ['lexer','parser','semant','ir','opt'].forEach(p => donePhase(p));
+    } catch(e) {
+      clearMsgs(); addMsg('err', e.message);
+      setStatus('ERROR','r');
+      document.getElementById('compile-btn').disabled = false;
+      resetPhases();
+      return;
+    }
+  }
+
+  // ── Code generation (always JS — renders to canvas) ──────
+  try {
+    const { W, H, frames, bg } = new CodeGen().run(irList);
+    ST.frames=frames; ST.bg=bg; ST.frame=0; ST.W=W; ST.H=H;
+    renderer.setup(W, H); renderer.grid=ST.grid; renderer.draw(frames[0], bg);
+
+    const isAnim = frames.length > 1;
+    document.getElementById('anim-bar').style.display = isAnim ? 'flex' : 'none';
+    updateFC();
+    if (ST.playing) { stopPlay(); if (isAnim) startPlay(); }
+
+    document.getElementById('s-frames').textContent = `FRAMES: ${frames.length}`;
+    document.getElementById('s-canvas').textContent = `CANVAS: ${W}x${H}`;
+    document.getElementById('cinfo').textContent = `${W}x${H} pixels · ${frames.length} frame(s) · ${renderer.ps}x zoom — hover for coords`;
+
+    // Update pipeline Phase 6 — Target Code Generation
+    pipeFillCodegen(W, H, frames.length, bg);
+
+    setStatus(fromBackend ? 'OK (PYTHON)' : 'OK (JS)','g');
+  } catch(e) {
+    addMsg('err', `CodeGen error: ${e.message}`);
+    setStatus('ERROR','r');
+  }
+
+  document.getElementById('compile-btn').disabled = false;
+  resetPhases();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  DEBUG PANEL RENDERERS
+// ─────────────────────────────────────────────────────────────
+function renderTokensFromBackend(toks) {
+  const el = document.getElementById('pc-lexer-body');
+  el.innerHTML = '<div class="tok-list">' +
+    toks.map(t => {
+      const cls = `tok T-${t.type}`;
+      return `<span class="${cls}" title="Line ${t.line}, Col ${t.col}">${t.type}<span style="opacity:.55;font-size:9px"> :${t.value}</span></span>`;
+    }).join('') + '</div>';
+}
+
+function renderTokens(toks) {
+  renderTokensFromBackend(toks.map(t => ({type:t.type,value:t.value,line:t.line,col:t.col})));
+}
+
+function renderASTFromBackend(astText) {
+  const el = document.getElementById('pc-parser-body');
+  if (!astText) { el.innerHTML = '<span style="color:var(--dim)">No AST available</span>'; return; }
+  el.innerHTML = `<div class="ast-tree"><pre>${esc(astText)}</pre></div>`;
+}
+
+function renderAST(ast) {
+  function node(n, depth) {
+    if (!n || typeof n !== 'object') return `<span style="color:var(--yellow)">${n}</span>`;
+    if (Array.isArray(n)) return n.map(x => node(x, depth)).join('');
+    const ind = depth * 14;
+    let h = `<div style="padding-left:${ind}px">`;
+    if (n.type) h += `<span style="color:var(--cyan)">${n.type}</span> `;
+    for (const [k,v] of Object.entries(n)) {
+      if (k === 'type') continue;
+      if (k === 'line') { h += `<span style="color:var(--dim);font-size:9px">[L${v}]</span>`; continue; }
+      if (k === 'body') {
+        h += `<div style="padding-left:${ind+14}px">${v.map(x=>node(x,depth+1)).join('')}</div>`;
+      } else {
+        h += ` <span style="color:var(--mid)">${k}=</span><span style="color:var(--yellow)">${v}</span>`;
+      }
+    }
+    return h + '</div>';
+  }
+  const el = document.getElementById('pc-parser-body');
+  if(el) el.innerHTML = `<div class="ast-tree">${node(ast,0)}</div>`;
+}
+
+function renderSemanticFromBackend(sem) {
+  const el = document.getElementById('pc-semant-body');
+  if (!sem) { el.innerHTML='<span style="color:var(--dim)">No semantic data</span>'; return; }
+  const errs = sem.errors || [];
+  const warns = sem.warnings || [];
+  if (!errs.length && !warns.length) {
+    el.innerHTML = '<div class="msg msg-ok" style="display:inline-flex;"><span class="msg-icon">✦</span><span>Semantic analysis passed — no errors or warnings.</span></div>';
+    return;
+  }
+  let html = '';
+  if (errs.length) {
+    html += `<div style="font-family:\'Press Start 2P\',cursive;font-size:7px;color:var(--magenta);margin-bottom:6px;letter-spacing:1px">ERRORS (${errs.length})</div>`;
+    errs.forEach(e => html += `<div class="msg msg-err"><span class="msg-icon">✖</span><span>L${e.line}: ${esc(e.message)}</span></div>`);
+  }
+  if (warns.length) {
+    html += `<div style="font-family:\'Press Start 2P\',cursive;font-size:7px;color:var(--yellow);margin:8px 0 6px;letter-spacing:1px">WARNINGS (${warns.length})</div>`;
+    warns.forEach(w => html += `<div class="msg msg-warn"><span class="msg-icon">⚠</span><span>L${w.line}: ${esc(w.message)}</span></div>`);
+  }
+  el.innerHTML = html;
+}
+
+function renderIRFromBackend(irRaw, irOpt, notes, removed) {
+  const el = document.getElementById('pc-ir-body');
+  if (!irRaw.length && !irOpt.length) { el.innerHTML='<span style="color:var(--dim)">No IR generated</span>'; return; }
+
+  const renderRows = (list) => list.map((ins,i) =>
+    `<div class="ir-row">
+      <span class="ir-i">${String(i).padStart(3,'0')}</span>
+      <span class="ir-op">${ins.op}</span>
+      <span class="ir-a">${ins.args.join(', ')}</span>
+     </div>`).join('');
+
+  let html = '';
+  html += `<div class="ir-section-head">▶ RAW IR — ${irRaw.length} instructions</div>`;
+  html += `<div class="ir-list">${renderRows(irRaw)}</div>`;
+  html += `<div class="ir-section-head" style="color:var(--orange)">▶ AFTER OPTIMIZER — ${irOpt.length} instructions <span class="opt-badge">-${removed}</span></div>`;
+  if (notes.length) {
+    notes.forEach(n => html += `<div class="ir-note">↳ ${esc(n)}</div>`);
+  } else {
+    html += `<div class="ir-removed" style="color:var(--dim)">No optimizations applied.</div>`;
+  }
+  html += `<div class="ir-list">${renderRows(irOpt)}</div>`;
+  el.innerHTML = html;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  ANIMATION CONTROLS
+// ─────────────────────────────────────────────────────────────
+function togglePlay(){ST.playing?stopPlay():startPlay();}
+function startPlay(){
+  ST.playing=true;
+  document.getElementById('play-btn').textContent='⏸';
+  document.getElementById('play-btn').classList.add('on');
+  ST.timer=setInterval(()=>{
+    ST.frame=(ST.frame+1)%ST.frames.length;
+    renderer.draw(ST.frames[ST.frame],ST.bg);updateFC();
+  },1000/ST.fps);
+}
+function stopPlay(){
+  ST.playing=false;clearInterval(ST.timer);
+  document.getElementById('play-btn').textContent='▶';
+  document.getElementById('play-btn').classList.remove('on');
+}
+function prevFrame(){stopPlay();ST.frame=(ST.frame-1+ST.frames.length)%ST.frames.length;renderer.draw(ST.frames[ST.frame],ST.bg);updateFC();}
+function nextFrame(){stopPlay();ST.frame=(ST.frame+1)%ST.frames.length;renderer.draw(ST.frames[ST.frame],ST.bg);updateFC();}
+function updateFC(){document.getElementById('fc').textContent=`Frame ${ST.frame+1} / ${ST.frames.length}`;}
+document.getElementById('spd-range').addEventListener('input',function(){
+  ST.fps=parseInt(this.value);document.getElementById('spd-val').textContent=ST.fps;
+  if(ST.playing){stopPlay();startPlay();}
+});
+
+// ─────────────────────────────────────────────────────────────
+//  GRID & EXPORT
+// ─────────────────────────────────────────────────────────────
+function toggleGrid(){
+  ST.grid=!ST.grid;
+  document.getElementById('grid-tog').classList.toggle('on',ST.grid);
+  renderer.grid=ST.grid;
+  if(ST.frames.length)renderer.draw(ST.frames[ST.frame],ST.bg);
+}
+function exportPNG(){
+  if(!ST.frames.length){addMsg('warn','Compile first before exporting.');return;}
+  const a=document.createElement('a');
+  a.download='pixelforge_frame.png';
+  a.href=document.getElementById('px-canvas').toDataURL('image/png');
+  a.click();addMsg('ok','Current frame exported as PNG.');
+}
+
+// -------------------------------------------------------------
+//  TAB SWITCHING
+// -------------------------------------------------------------
+function switchTab(el,name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  // Hide all tc panels
+  ['tc-ref','tc-source','tc-pipeline'].forEach(id=>{
+    const el2=document.getElementById(id);
+    if(el2) el2.classList.remove('on');
+  });
+  el.classList.add('on');
+  const panel=document.getElementById('tc-'+name);
+  if(panel) panel.classList.add('on');
+}
+
+// -------------------------------------------------------------
+//  PIPELINE ENGINE — 6 phases
+// -------------------------------------------------------------
+const PIPE_PHASES = ['lexer','parser','semant','ir','opt','codegen'];
+const PIPE_ARROWS = { lexer:'pa-1', parser:'pa-2', semant:'pa-3', ir:'pa-4', opt:'pa-5' };
+
+function pipeReset(){
+  PIPE_PHASES.forEach(p=>{
+    const node=document.getElementById('pn-'+p);
+    if(node) node.className='pipe-node';
+    const stat=document.getElementById('pn-'+p+'-stat');
+    if(stat) stat.textContent='idle';
+    const card=document.getElementById('pc-'+p);
+    if(card) card.className='pipe-card pc-idle';
+    const badge=document.getElementById('pc-'+p+'-badge');
+    if(badge) badge.textContent='IDLE';
+    const body=document.getElementById('pc-'+p+'-body');
+    const chev=document.getElementById('pc-'+p+'-chev');
+    if(body) body.classList.remove('open');
+    if(chev) chev.classList.remove('open');
+  });
+  for(let i=1;i<=5;i++){
+    const a=document.getElementById('pa-'+i);
+    if(a) a.classList.remove('lit');
+  }
+}
+
+function pipeSetRunning(phase){
+  const node=document.getElementById('pn-'+phase);
+  if(node) node.className='pipe-node pn-running';
+  const stat=document.getElementById('pn-'+phase+'-stat');
+  if(stat) stat.textContent='running...';
+  const card=document.getElementById('pc-'+phase);
+  if(card) card.className='pipe-card pc-running';
+  const badge=document.getElementById('pc-'+phase+'-badge');
+  if(badge) badge.textContent='RUNNING';
+}
+
+function pipeSetDone(phase, label, meta){
+  const node=document.getElementById('pn-'+phase);
+  if(node) node.className='pipe-node pn-done';
+  const stat=document.getElementById('pn-'+phase+'-stat');
+  if(stat) stat.textContent=label||'done';
+  const card=document.getElementById('pc-'+phase);
+  if(card) card.className='pipe-card pc-done';
+  const badge=document.getElementById('pc-'+phase+'-badge');
+  if(badge) badge.textContent=label||'OK';
+  const metaEl=document.getElementById('pc-'+phase+'-meta');
+  if(metaEl&&meta) metaEl.textContent=meta;
+  if(PIPE_ARROWS[phase]){
+    const arr=document.getElementById(PIPE_ARROWS[phase]);
+    if(arr) arr.classList.add('lit');
+  }
+}
+
+function pipeSetError(phase, label){
+  const node=document.getElementById('pn-'+phase);
+  if(node) node.className='pipe-node pn-error';
+  const stat=document.getElementById('pn-'+phase+'-stat');
+  if(stat) stat.textContent='error';
+  const card=document.getElementById('pc-'+phase);
+  if(card) card.className='pipe-card pc-error';
+  const badge=document.getElementById('pc-'+phase+'-badge');
+  if(badge) badge.textContent='ERROR';
+  const body=document.getElementById('pc-'+phase+'-body');
+  const chev=document.getElementById('pc-'+phase+'-chev');
+  if(body){ body.innerHTML=`<div class="psem-e">&#x2716; ${esc(label||'Error')}</div>`; body.classList.add('open'); }
+  if(chev) chev.classList.add('open');
+}
+
+function pCardToggle(phase){
+  const body=document.getElementById('pc-'+phase+'-body');
+  const chev=document.getElementById('pc-'+phase+'-chev');
+  if(body) body.classList.toggle('open');
+  if(chev) chev.classList.toggle('open');
+}
+
+// ── Fill individual phase cards ────────────────────────────────
+
+function pipeFillLexer(tokens){
+  const nonEof=tokens.filter(t=>t.type!=='EOF');
+  pipeSetDone('lexer', nonEof.length+' tokens', 'Lexical Analysis — '+nonEof.length+' tokens');
+  const COLOR_MAP={
+    CANVAS:'var(--magenta)',COLOR:'var(--magenta)',DRAW:'var(--magenta)',
+    ANIMATE:'var(--magenta)',FILL:'var(--magenta)',PIXEL:'var(--green)',
+    SQUARE:'var(--green)',LINE:'var(--green)',NUMBER:'var(--orange)',
+    COLOR_NAME:'var(--cyan)',DIRECTION:'#cc88ff',MOVE:'#cc88ff',
+    RGB:'var(--yellow)',LPAREN:'var(--yellow)',RPAREN:'var(--yellow)',COMMA:'var(--yellow)',
+    IDENTIFIER:'var(--mid)',EOF:'var(--dim)'
+  };
+  const grid='<div class="ptok-grid">'+
+    nonEof.map(t=>{
+      const c=COLOR_MAP[t.type]||'var(--bright)';
+      return `<span class="ptok" style="border-color:${c};color:${c}" title="Type: ${t.type}  Value: ${t.value}  Line: ${t.line} Col: ${t.col}">${esc(t.type)}<span style="opacity:.5;font-size:8px"> ${esc(String(t.value))}</span></span>`;
+    }).join('')+
+  '</div>';
+  const summary=`<div style="margin-top:8px;font-size:10px;color:var(--dim)">
+    <span style="color:var(--cyan)">${nonEof.length}</span> tokens produced &mdash;
+    hover a token to see its type, value and source position.
+  </div>`;
+  document.getElementById('pc-lexer-body').innerHTML=grid+summary;
+}
+
+function pipeFillParser(astText, stmtCount){
+  pipeSetDone('parser', stmtCount+' stmt'+(stmtCount===1?'':'s'), 'Syntax Analysis — '+stmtCount+' statement(s)');
+  document.getElementById('pc-parser-body').innerHTML=
+    `<div style="font-family:'Press Start 2P',cursive;font-size:6.5px;color:var(--green);margin-bottom:8px">ABSTRACT SYNTAX TREE</div>`+
+    `<div class="past"><pre>${esc(astText||'(no AST data)')}</pre></div>`;
+}
+
+function pipeFillSemant(sem){
+  const errs=sem.errors||[], warns=sem.warnings||[];
+  if(errs.length){
+    pipeSetError('semant', errs.length+' error(s)');
+  } else {
+    pipeSetDone('semant', warns.length ? warns.length+' warn' : 'PASS',
+      'Semantic Analysis — '+(errs.length===0&&warns.length===0?'no issues':warns.length+' warning(s)'));
+  }
+  let html='';
+  if(!errs.length&&!warns.length){
+    html='<div class="psem-ok">&#x2714; Semantic analysis passed — no type errors, scope errors, or warnings.</div>';
+  }
+  warns.forEach(w=>{ html+=`<div class="psem-w">&#x26A0; <strong>L${w.line}:</strong> ${esc(w.message)}</div>`; });
+  errs.forEach(e=>{ html+=`<div class="psem-e">&#x2716; <strong>L${e.line}:</strong> ${esc(e.message)}</div>`; });
+  document.getElementById('pc-semant-body').innerHTML=html;
+}
+
+function pipeFillIR(irList){
+  pipeSetDone('ir', irList.length+' instr', 'IR Generation — '+irList.length+' instructions');
+  const head='<div style="font-family:\'Press Start 2P\',cursive;font-size:6.5px;color:var(--magenta);margin-bottom:8px">INTERMEDIATE CODE (THREE-ADDRESS FORM)</div>';
+  const rows=irList.map((ins,i)=>
+    `<div class="pir-row">
+      <span class="pir-i">${String(i).padStart(3,'0')}</span>
+      <span class="pir-op">${esc(ins.op)}</span>
+      <span class="pir-a">${esc(Array.isArray(ins.args)?ins.args.join(', '):String(ins.args))}</span>
+    </div>`
+  ).join('');
+  document.getElementById('pc-ir-body').innerHTML=head+`<div>${rows}</div>`;
+}
+
+function pipeFillOpt(irRaw, irOpt, notes, removed){
+  pipeSetDone('opt', removed?'-'+removed+' removed':'no change',
+    'Optimization — '+irOpt.length+' final instructions, '+removed+' removed');
+  let html='';
+  if(notes&&notes.length){
+    html+='<div style="font-family:\'Press Start 2P\',cursive;font-size:6.5px;color:var(--orange);margin-bottom:8px">OPTIMIZATIONS APPLIED</div>';
+    notes.forEach(n=>{ html+=`<div class="popt-note">&#x21B3; ${esc(n)}</div>`; });
+    html+='<div style="margin-top:12px;font-family:\'Press Start 2P\',cursive;font-size:6.5px;color:var(--magenta)">OPTIMIZED INTERMEDIATE CODE</div>';
+  } else {
+    html='<div style="color:var(--dim);font-size:10.5px;margin-bottom:10px">No optimizations applied — intermediate code is already optimal.</div>';
+    html+='<div style="margin-top:4px;font-family:\'Press Start 2P\',cursive;font-size:6.5px;color:var(--magenta)">FINAL INTERMEDIATE CODE</div>';
+  }
+  html+=`<div style="margin-top:6px;">${
+    irOpt.map((ins,i)=>
+      `<div class="pir-row">
+        <span class="pir-i">${String(i).padStart(3,'0')}</span>
+        <span class="pir-op">${esc(ins.op)}</span>
+        <span class="pir-a">${esc(Array.isArray(ins.args)?ins.args.join(', '):String(ins.args))}</span>
+      </div>`
+    ).join('')
+  }</div>`;
+  document.getElementById('pc-opt-body').innerHTML=html;
+}
+
+function pipeFillCodegen(W, H, frames, bg){
+  const fcount=frames||0;
+  const isAnim=fcount>1;
+  pipeSetDone('codegen', fcount+' frame'+(fcount===1?'':'s'),
+    'Target Code — '+W+'x'+H+' canvas, '+fcount+' frame'+(fcount===1?'':'s'));
+  // light pa-5 arrow
+  const a5=document.getElementById('pa-5');
+  if(a5) a5.classList.add('lit');
+  const html=
+    `<div style="font-family:'Press Start 2P',cursive;font-size:6.5px;color:var(--cyan);margin-bottom:10px">TARGET CODE OUTPUT — PIXEL CANVAS RENDERER</div>`+
+    `<div class="pcg-table">`+
+      `<span class="pcg-lbl">Canvas size</span><span class="pcg-val">${W} &times; ${H} pixels</span>`+
+      `<span class="pcg-lbl">Background</span><span class="pcg-val" style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:${esc(bg||'#0a0a0a')};border:1px solid var(--dim);display:inline-block"></span>${esc(bg||'default')}</span>`+
+      `<span class="pcg-lbl">Frame count</span><span class="pcg-val">${fcount} frame${fcount===1?'':'s'} ${isAnim?'(animated)':'(static)'}</span>`+
+      `<span class="pcg-lbl">Output type</span><span class="pcg-val">PixelForge Canvas (browser-rendered)</span>`+
+    `</div>`+
+    `<div style="margin-top:10px;font-size:10.5px;color:var(--dim)">&#x2714; Target code successfully generated and rendered to canvas viewport.</div>`;
+  document.getElementById('pc-codegen-body').innerHTML=html;
+}
+
+// ── Sync pipeline from a complete backend response ──────────────
+function pipelineFromBackend(data, codegenInfo){
+  pipeReset();
+  pipeFillLexer(data.tokens||[]);
+  const nonEof=(data.tokens||[]).filter(t=>t.type!=='EOF');
+  const stmts=data.ast ? (data.ast.match(/Stmt|Canvas|Fill|Draw|Animate|Color/g)||[]).length : 0;
+  if(data.ast) pipeFillParser(data.ast, stmts);
+  else pipeSetDone('parser','0 stmts','No AST produced');
+  pipeFillSemant(data.semantic||{errors:[],warnings:[]});
+  if(data.ir&&data.ir.length) pipeFillIR(data.ir);
+  else pipeSetDone('ir','0 instr','No IR generated');
+  if(data.ir_optimized) pipeFillOpt(data.ir||[], data.ir_optimized, data.optimizer_notes||[], data.optimizer_removed||0);
+  else pipeSetDone('opt','no change','No optimizer data');
+  if(codegenInfo) pipeFillCodegen(codegenInfo.W,codegenInfo.H,codegenInfo.frames,codegenInfo.bg);
+  else pipeSetDone('codegen','pending','Waiting for render...');
+  // open lexer card by default
+  const lb=document.getElementById('pc-lexer-body');
+  const lc=document.getElementById('pc-lexer-chev');
+  if(lb) lb.classList.add('open');
+  if(lc) lc.classList.add('open');
+}
+
+// ── Sync pipeline from JS compiler objects ──────────────────────
+function pipelineFromJS(toks, stmtCount, semResult, jsIR, jsOpt, codegenInfo){
+  pipeReset();
+  pipeFillLexer(toks);
+  pipeFillParser(null, stmtCount);
+  pipeFillSemant(semResult);
+  pipeFillIR(jsIR);
+  pipeFillOpt(jsIR, jsOpt.ir, jsOpt.notes, jsOpt.removed);
+  if(codegenInfo) pipeFillCodegen(codegenInfo.W,codegenInfo.H,codegenInfo.frames,codegenInfo.bg);
+  else pipeSetDone('codegen','pending','Waiting for render...');
+  const lb=document.getElementById('pc-lexer-body');
+  const lc=document.getElementById('pc-lexer-chev');
+  if(lb) lb.classList.add('open');
+  if(lc) lc.classList.add('open');
+}
+
+
+// -------------------------------------------------------------
+//  OPEN SOURCE FILE IN NEW TAB
+// -------------------------------------------------------------
+async function openSourceTab(filename, label, accentVar){
+  // Try to get source — use cache if available
+  let code = null;
+  if(_srcCache && _srcCache[filename]){
+    code = _srcCache[filename];
+  } else if(BACKEND_CONNECTED){
+    try{
+      const url = getBackendURL();
+      const res = await fetch(`${url}/api/source`, {signal: AbortSignal.timeout(6000)});
+      const data = await res.json();
+      _srcCache = data;
+      code = data[filename];
+    } catch(e){ code = null; }
+  }
+
+  // Build highlighted HTML
+  function hesc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function highlight(src){
+    const KW = /\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b/g;
+    const BI = /\b(print|len|range|list|dict|set|tuple|int|float|str|bool|type|isinstance|hasattr|getattr|setattr|enumerate|zip|map|filter|open|input|repr|abs|round|sorted|reversed|any|all|max|min|sum|vars|dir|super|staticmethod|classmethod|property)\b/g;
+    const lines = src.split('\n');
+    return lines.map(line => {
+      // comment
+      const ci = line.indexOf('#');
+      let code_part = line, cmt = '';
+      if(ci !== -1){
+        // crude: ignore # inside strings — good enough for display
+        const before = line.slice(0, ci);
+        const q1 = (before.match(/"/g)||[]).length;
+        const q2 = (before.match(/'/g)||[]).length;
+        if(q1%2===0 && q2%2===0){ code_part = line.slice(0,ci); cmt = line.slice(ci); }
+      }
+      // strings
+      code_part = code_part.replace(/("""[\s\S]*?"""|'''[\s\S]*?'''|"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*')/g,
+        m => `<span style="color:#aad88a">${hesc(m)}</span>`);
+      // decorators
+      code_part = code_part.replace(/(@\w+)/g, m => `<span style="color:#d080d0">${hesc(m)}</span>`);
+      // keywords
+      code_part = code_part.replace(KW, m => `<span style="color:#cc88ff">${m}</span>`);
+      // builtins
+      code_part = code_part.replace(BI, m => `<span style="color:#00e5ff">${m}</span>`);
+      // numbers
+      code_part = code_part.replace(/\b(\d+\.?\d*)\b/g, m => `<span style="color:#ffaa44">${m}</span>`);
+      // def / class names
+      code_part = code_part.replace(/(def|class)\s+(\w+)/g,
+        (_,kw,name) => `<span style="color:#cc88ff">${kw}</span> <span style="color:#ffe066">${name}</span>`);
+      return code_part + (cmt ? `<span style="color:#556655;font-style:italic">${hesc(cmt)}</span>` : '');
+    }).join('\n');
+  }
+
+  const lineCount = code ? code.split('\n').length : 0;
+  const bodyContent = code
+    ? highlight(code)
+    : `<span style="color:#ff006e">Could not load ${hesc(filename)}.<br>Make sure the Python backend is running and PING is green.</span>`;
+
+  const lineNums = code
+    ? Array.from({length: lineCount}, (_,i) => i+1).join('\n')
+    : '';
+
+  const accentColor = {
+    'var(--cyan)': '#00e5ff', 'var(--green)': '#00ff41',
+    'var(--yellow)': '#ffee00', 'var(--magenta)': '#ff006e',
+    'var(--orange)': '#ff8800'
+  }[accentVar] || '#00e5ff';
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>${filename} — PixelForge Compiler Source</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#050505;color:#c0c0c0;font-family:'Share Tech Mono',monospace;font-size:12.5px;line-height:1.75;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  /* Header */
+  .hdr{flex-shrink:0;background:#0d0d0d;border-bottom:2px solid ${accentColor};padding:10px 20px;display:flex;align-items:center;gap:14px}
+  .hdr-icon{font-size:22px}
+  .hdr-title{font-family:'Press Start 2P',cursive;font-size:9px;color:${accentColor};letter-spacing:1px}
+  .hdr-file{font-size:11px;color:#556;margin-left:auto}
+  .hdr-meta{font-size:10px;color:#556;padding:2px 8px;border:1px solid #333}
+  .copy-btn{font-family:'Press Start 2P',cursive;font-size:6px;padding:5px 10px;border:1px solid #444;color:#666;background:transparent;cursor:pointer;transition:all .15s;margin-left:8px}
+  .copy-btn:hover{border-color:${accentColor};color:${accentColor}}
+  .copy-btn.copied{border-color:#00ff41;color:#00ff41}
+  /* Breadcrumb */
+  .breadcrumb{flex-shrink:0;background:#080808;padding:5px 20px;font-size:9px;color:#333;border-bottom:1px solid #111;font-family:'Press Start 2P',cursive;letter-spacing:.5px}
+  .breadcrumb span{color:#444}  .breadcrumb .cur{color:${accentColor}}
+  /* Code view */
+  .code-view{flex:1;min-height:0;display:flex;overflow:hidden}
+  .line-nums{background:#0a0a0a;padding:8px 10px 8px 14px;color:#333;text-align:right;user-select:none;border-right:1px solid #1a1a1a;min-width:52px;flex-shrink:0;overflow:hidden;white-space:pre;font-size:11px;line-height:1.75}
+  .code-body{flex:1;overflow:auto;padding:8px 20px}
+  pre{white-space:pre;font-size:12.5px;line-height:1.75}
+  /* Footer */
+  .footer{flex-shrink:0;background:#0d0d0d;border-top:1px solid #1a1a1a;padding:5px 20px;font-size:9px;color:#333;display:flex;gap:20px}
+  .footer span{color:#444}
+  a{color:${accentColor};text-decoration:none}
+  a:hover{text-decoration:underline}
+  /* Scrollbar */
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:#0a0a0a}
+  ::-webkit-scrollbar-thumb{background:#222;border-radius:3px}
+  ::-webkit-scrollbar-thumb:hover{background:${accentColor}44}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <span class="hdr-icon">&#x1F4C4;</span>
+  <div>
+    <div class="hdr-title">${label}</div>
+    <div style="font-size:10px;color:#556;margin-top:3px">PixelForge Compiler &mdash; CS4031 Compiler Construction &middot; Spring 2026</div>
+  </div>
+  <span class="hdr-file">${filename}</span>
+  <span class="hdr-meta">${lineCount} lines</span>
+  <button class="copy-btn" id="copy-btn" onclick="copyAll()">&#x1F4CB; COPY ALL</button>
+</div>
+<div class="breadcrumb">
+  PixelForge &nbsp;<span>&#x25B8;</span>&nbsp; compiler &nbsp;<span>&#x25B8;</span>&nbsp; <span class="cur">${filename}</span>
+</div>
+<div class="code-view">
+  <div class="line-nums" id="lnums">${lineNums}</div>
+  <div class="code-body"><pre id="code-pre">${bodyContent}</pre></div>
+</div>
+<div class="footer">
+  <span>FILE:</span> ${filename} &nbsp;&bull;&nbsp;
+  <span>LINES:</span> ${lineCount} &nbsp;&bull;&nbsp;
+  <span>ENCODING:</span> UTF-8 &nbsp;&bull;&nbsp;
+  <span>LANGUAGE:</span> Python 3
+</div>
+<script>
+  const raw = ${JSON.stringify(code||'')};
+  function copyAll(){
+    navigator.clipboard.writeText(raw).then(()=>{
+      const b=document.getElementById('copy-btn');
+      b.textContent='COPIED!'; b.className='copy-btn copied';
+      setTimeout(()=>{ b.textContent='\\u1F4CB COPY ALL'; b.className='copy-btn'; },2000);
+    });
+  }
+  // Sync scroll of line numbers with code body
+  document.querySelector('.code-body').addEventListener('scroll',function(){
+    document.getElementById('lnums').scrollTop=this.scrollTop;
+  });
+<\/script>
+</body>
+</html>`;
+
+  const tab = window.open('', '_blank');
+  if(tab){
+    tab.document.open();
+    tab.document.write(html);
+    tab.document.close();
+  } else {
+    addMsg('warn', 'Popup blocked — allow popups for this page to open source files.');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  SOURCE CODE VIEWER
+// ─────────────────────────────────────────────────────────────
+let _srcCache = null;   // {filename: code}
+let _srcActive = 'app.py';
+
+const PY_KEYWORDS = /\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b/g;
+const PY_BUILTINS  = /\b(print|len|range|list|dict|set|tuple|int|float|str|bool|type|isinstance|hasattr|getattr|setattr|enumerate|zip|map|filter|open|input|repr|abs|round|sorted|reversed|any|all|max|min|sum|vars|dir|super|staticmethod|classmethod|property)\b/g;
+
+function pythonHighlight(code){
+  // We tokenise line by line so comments & strings don't bleed
+  return code.split('\n').map(line => {
+    // Escape HTML first
+    let s = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    // Comment  (# ...)
+    const cmtIdx = s.search(/((?<!&)#)/);
+    let comment = '';
+    if(cmtIdx >= 0){
+      comment = `<span class="py-cmt">${s.slice(cmtIdx)}</span>`;
+      s = s.slice(0, cmtIdx);
+    }
+
+    // Strings — triple then single/double
+    s = s
+      .replace(/("""[\s\S]*?"""|'''[\s\S]*?''')/g, m=>`<span class="py-str">${m}</span>`)
+      .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, m=>`<span class="py-str">${m}</span>`);
+
+    // Decorator
+    s = s.replace(/(@[A-Za-z_][\w.]*)/g, `<span class="py-dec">$1</span>`);
+
+    // class Name / def name
+    s = s.replace(/\bclass\b\s+([A-Za-z_]\w*)/g,
+      `<span class="py-kw">class</span> <span class="py-cls">$1</span>`);
+    s = s.replace(/\bdef\b\s+([A-Za-z_]\w*)/g,
+      `<span class="py-kw">def</span> <span class="py-fn">$1</span>`);
+
+    // Keywords
+    s = s.replace(PY_KEYWORDS, m=>`<span class="py-kw">${m}</span>`);
+    PY_KEYWORDS.lastIndex = 0;
+
+    // Builtins
+    s = s.replace(PY_BUILTINS, m=>`<span class="py-bi">${m}</span>`);
+    PY_BUILTINS.lastIndex = 0;
+
+    // Numbers
+    s = s.replace(/\b(\d+\.?\d*|0x[0-9a-fA-F]+)\b/g, m=>`<span class="py-num">${m}</span>`);
+
+    return s + comment;
+  }).join('\n');
+}
+
+function renderSrcPanel(files){
+  _srcCache = files;
+  showSrcFile(_srcActive);
+}
+
+function showSrcFile(fname){
+  _srcActive = fname;
+  // Update chips
+  document.querySelectorAll('.src-chip').forEach(c=>c.classList.remove('active'));
+  const chip = document.getElementById('src-chip-'+fname);
+  if(chip) chip.classList.add('active');
+
+  const wrap = document.getElementById('src-code-wrap');
+  if(!_srcCache || !_srcCache[fname]){
+    wrap.innerHTML='<div class="src-load-msg"><span style="color:var(--dim)">File not available — start Python backend first.</span></div>';
+    document.getElementById('src-lines-badge').textContent='';
+    return;
+  }
+  const code = _srcCache[fname];
+  const lines = code.split('\n');
+  const lineNums = lines.map((_,i)=>`${i+1}`).join('\n');
+  document.getElementById('src-lines-badge').textContent = `${lines.length} lines · ${(code.length/1024).toFixed(1)} KB`;
+  const highlighted = pythonHighlight(code);
+  wrap.innerHTML =
+    `<div class="src-lns">${esc(lineNums)}</div>`+
+    `<div class="src-code">${highlighted}</div>`;
+}
+
+async function loadSourceCode(){
+  if(_srcCache){ showSrcFile(_srcActive); return; }  // already loaded
+  const wrap = document.getElementById('src-code-wrap');
+  const loadMsg = `<div class="src-load-msg"><span class="mode-dot loading"></span><span id="src-load-text">Fetching compiler source from Python backendâ€¦</span></div>`;
+  wrap.innerHTML = loadMsg;
+  if(!BACKEND_CONNECTED){
+    wrap.innerHTML='<div class="src-load-msg" style="flex-direction:column;gap:8px;"><span style="color:var(--yellow);font-family:\'Press Start 2P\',cursive;font-size:8px">⚠ BACKEND OFFLINE</span><span style="color:var(--dim)">Start <span style="color:var(--green)">python app.py</span> then click PING to connect, then reload this tab.</span></div>';
+    return;
+  }
+  try {
+    const url = getBackendURL();
+    const res = await fetch(`${url}/api/source`, { signal: AbortSignal.timeout(6000) });
+    const data = await res.json();
+    renderSrcPanel(data);
+    addMsg('info', `↳ Loaded ${Object.keys(data).length} source files from backend.`);
+  } catch(e) {
+    wrap.innerHTML=`<div class="src-load-msg" style="flex-direction:column;gap:8px;"><span style="color:var(--magenta)">✖ Failed to load source: ${esc(e.message)}</span><span style="color:var(--dim)">Ensure backend is running and PING succeeds.</span></div>`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MESSAGES & STATUS
+// ─────────────────────────────────────────────────────────────
+function clearMsgs(){document.getElementById('msgs').innerHTML='';}
+function addMsg(type,text){
+  const cls=type==='err'?'msg-err':type==='warn'?'msg-warn':type==='info'?'msg-info':'msg-ok';
+  const ico=type==='err'?'✖':type==='warn'?'⚠':type==='info'?'â†’':'✦';
+  const el=document.getElementById('msgs');
+  const div=document.createElement('div');
+  div.className=`msg ${cls}`;
+  div.innerHTML=`<span class="msg-icon">${ico}</span><span>${esc(text)}</span>`;
+  el.appendChild(div);el.scrollTop=el.scrollHeight;
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function setStatus(txt,c){
+  document.getElementById('stext').textContent=txt;
+  document.getElementById('sdot').className=`s-dot ${c}`;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  EDITOR HELPERS
+// ─────────────────────────────────────────────────────────────
+function updateLN(){
+  const lines=document.getElementById('editor').value.split('\n').length;
+  document.getElementById('ln').textContent=Array.from({length:lines},(_,i)=>i+1).join('\n');
+}
+function updateCC(){document.getElementById('charcount').textContent=document.getElementById('editor').value.length+' chars';}
+function clearEditor(){document.getElementById('editor').value='';updateLN();updateCC();}
+function resetAll(){
+  clearEditor();stopPlay();clearMsgs();
+  ST.frames=[];ST.frame=0;
+  const c=document.getElementById('px-canvas');c.width=400;c.height=400;
+  const ctx=c.getContext('2d');ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,400,400);
+  ctx.strokeStyle='rgba(0,229,255,.06)';ctx.lineWidth=.5;
+  for(let i=0;i<=20;i++){ctx.beginPath();ctx.moveTo(i*20,0);ctx.lineTo(i*20,400);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*20);ctx.lineTo(400,i*20);ctx.stroke();}
+  document.getElementById('anim-bar').style.display='none';
+  document.getElementById('cinfo').textContent='No canvas defined · compile to see output';
+  ['s-tok','s-frames','s-canvas','s-ir','s-opt'].forEach(id=>document.getElementById(id).textContent=id.replace('s-','')+': —');
+  document.getElementById('pc-lexer-body').innerHTML='<span style="color:var(--dim)">Compile to see tokens...</span>';
+  document.getElementById('pc-parser-body').innerHTML='<span style="color:var(--dim)">Compile to see AST...</span>';
+  document.getElementById('pc-ir-body').innerHTML='<span style="color:var(--dim)">Compile to see IR...</span>';
+  document.getElementById('pc-semant-body').innerHTML='<span style="color:var(--dim)">Compile to see semantic analysis...</span>';
+  addMsg('ok','Reset complete. PixelForge Compiler ready.');setStatus('READY','g');
+}
+function loadSample(name){document.getElementById('editor').value=SAMPLES[name];updateLN();updateCC();compile();}
+
+document.getElementById('editor').addEventListener('input',()=>{updateLN();updateCC();});
+document.getElementById('editor').addEventListener('keydown',e=>{
+  if(e.key==='Tab'){e.preventDefault();const ta=e.target,s=ta.selectionStart;ta.value=ta.value.slice(0,s)+'  '+ta.value.slice(ta.selectionEnd);ta.selectionStart=ta.selectionEnd=s+2;updateLN();}
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();compile();}
+});
+document.getElementById('backend-url-input').addEventListener('change',()=>{BACKEND_URL=getBackendURL();if(USE_BACKEND)pingBackend();});
+document.getElementById('px-canvas').addEventListener('mousemove',e=>{
+  if(!ST.frames.length)return;
+  const r=e.target.getBoundingClientRect();
+  const x=Math.floor((e.clientX-r.left)/renderer.ps),y=Math.floor((e.clientY-r.top)/renderer.ps);
+  document.getElementById('cinfo').textContent=`${ST.W}Ã—${ST.H} px · Cursor: (${x}, ${y}) · Frame ${ST.frame+1}/${ST.frames.length} · ${renderer.ps}Ã— zoom`;
+});
+
+// ─────────────────────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────────────────────
+(function init(){
+  const c=document.getElementById('px-canvas');
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,400,400);
+  ctx.strokeStyle='rgba(0,229,255,.07)';ctx.lineWidth=.5;
+  for(let i=0;i<=20;i++){ctx.beginPath();ctx.moveTo(i*20,0);ctx.lineTo(i*20,400);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*20);ctx.lineTo(400,i*20);ctx.stroke();}
+  // Activate PIPELINE tab as default
+  const pipBtn=document.getElementById('tab-pipeline');
+  if(pipBtn) { pipBtn.classList.add('on'); document.getElementById('tc-pipeline').classList.add('on'); }
+  // Try to connect to backend, then load default sample
+  pingBackend().then(() => loadSample('basic'));
+})();
+</script>
+</body>
+</html>
+
