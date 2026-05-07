@@ -131,15 +131,27 @@ PixelForge/
 │   ├── ir_generator.py        # Phase 4: AST to IR TAC Compiler
 │   └── optimizer.py           # Phase 5: Peephole Optimizer
 │
-├── Web Architecture
+├── Web Architecture & IDE
 │   ├── app.py                 # Flask REST API connecting Python to Web
-│   └── PixelForge_Compiler.html # The UI IDE and Target JS Virtual Machine
+│   ├── PixelForge_Compiler.html # The UI IDE and Target JS Virtual Machine
+│   └── Language_Reference_Manual.txt # Complete formal specification of the DSL
 │
-└── Maintenance Scripts
+└── Maintenance Scripts (Internal)
     ├── fix_utf8.py            # Converts source files to UTF-8
+    ├── fix_utf8_bin.py        # Alternative UTF-8 encoding fixer
     ├── patch_minimize.py      # Injects UI window minimizing features
-    └── patch_samples.py       # Injects code samples into the IDE dropdown
+    ├── patch_samples.py       # Injects code samples into the IDE dropdown
+    └── remove_src.py          # Utility script for source extraction
 ```
+
+---
+
+## ✨ Advanced IDE Features
+
+* **Real-time Pipeline Visualization:** See exactly what each compiler phase is outputting live (Token Stream, AST, Semantic Errors, IR operations, Optimizer diffs).
+* **Built-in Test Suite:** A dedicated tab containing 5 predefined test cases demonstrating semantic error handling, syntax error handling, dead-code elimination, Bresenham algorithms, and complex canvas rendering.
+* **Fully Responsive UI:** The side-by-side cyberpunk interface intelligently scales and stacks on smaller screens, allowing seamless scrolling and editing anywhere.
+* **Responsive Canvas Engine:** The HTML5 renderer automatically calculates pixel density and scales up or down based on your monitor size instantly, preserving crisp pixel art edges.
 
 ---
 

@@ -1187,7 +1187,7 @@ class Renderer {
   constructor(el){this.el=el;this.ctx=el.getContext('2d');this.ps=20;this.W=16;this.H=16;this.grid=true;}
   setup(W,H){
     this.W=W;this.H=H;
-    const maxPx=Math.min(480,Math.floor(Math.min(this.el.parentElement.clientWidth-20,this.el.parentElement.clientHeight-60)));
+    const maxPx=Math.floor(Math.min(this.el.parentElement.clientWidth-20,this.el.parentElement.clientHeight-60));
     this.ps=Math.max(1,Math.floor(Math.min(maxPx/W,maxPx/H)));
     this.el.width=W*this.ps;this.el.height=H*this.ps;
   }
@@ -2330,6 +2330,12 @@ document.getElementById('px-canvas').addEventListener('mousemove',e=>{
   document.getElementById('cinfo').textContent=`${ST.W}Ã—${ST.H} px · Cursor: (${x}, ${y}) · Frame ${ST.frame+1}/${ST.frames.length} · ${renderer.ps}Ã— zoom`;
 });
 
+window.addEventListener('resize', () => {
+  if (ST.frames && ST.frames.length) {
+    renderer.setup(ST.W, ST.H);
+    renderer.draw(ST.frames[ST.frame], ST.bg);
+  }
+});
 // ─────────────────────────────────────────────────────────────
 //  INIT
 // ─────────────────────────────────────────────────────────────
