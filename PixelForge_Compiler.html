@@ -9,13 +9,22 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg0:#030608;--bg1:#070d12;--bg2:#0c1520;--bg3:#111e2e;
-  --green:#00ff41;--cyan:#00e5ff;--magenta:#ff006e;--yellow:#ffee00;--orange:#ff8c00;
-  --dim:#5e7c9c;--mid:#8dafd4;--bright:#c8d8e8;
-  --gg:0 0 8px #00ff41,0 0 20px #00ff4133;
-  --gc:0 0 8px #00e5ff,0 0 20px #00e5ff33;
-  --gm:0 0 8px #ff006e,0 0 20px #ff006e33;
-  --gy:0 0 8px #ffee00,0 0 16px #ffee0033;
+  --bg0: #05050A;
+  --bg1: rgba(10, 10, 20, 0.75);
+  --bg2: #121220;
+  --bg3: #1C1C30;
+  --green: #00FF88;
+  --cyan: #00E5FF;
+  --magenta: #FF007A;
+  --yellow: #FFD600;
+  --orange: #FF6B00;
+  --dim: #6B7280;
+  --mid: #A1A1AA;
+  --bright: #F3F4F6;
+  --gg: 0 0 10px #00FF88, 0 0 25px rgba(0,255,136,0.3);
+  --gc: 0 0 10px #00E5FF, 0 0 25px rgba(0,229,255,0.3);
+  --gm: 0 0 10px #FF007A, 0 0 25px rgba(255,0,122,0.3);
+  --gy: 0 0 10px #FFD600, 0 0 25px rgba(255,214,0,0.3);
 }
 html,body{height:100%;overflow:hidden}
 body{background:var(--bg0);color:var(--bright);font-family:'Share Tech Mono',monospace;display:flex;flex-direction:column}
@@ -31,7 +40,8 @@ body::after{content:'';position:fixed;inset:0;
 /* ── Header ── */
 .hdr{
   flex-shrink:0;height:64px;background:var(--bg1);
-  border-bottom:1px solid var(--bg3);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom:1px solid rgba(28, 28, 48, 0.8);
   display:flex;align-items:center;justify-content:space-between;padding:0 20px;
   position:relative;
 }
@@ -86,10 +96,28 @@ body::after{content:'';position:fixed;inset:0;
   display:grid;
   grid-template-columns:1fr 1fr;
   grid-template-rows:1fr minmax(320px,42%);
+  overflow-y:auto;
 }
 .left-col{grid-row:1;grid-column:1;display:flex;flex-direction:column;border-right:1px solid var(--bg3);overflow:hidden}
 .right-col{grid-row:1;grid-column:2;display:flex;flex-direction:column;overflow:hidden}
 .debug-col{grid-row:2;grid-column:1/-1;display:flex;flex-direction:column;border-top:1px solid var(--bg3);overflow:hidden}
+
+@media (max-width: 1000px) {
+  html,body{overflow-y:auto}
+  .main{
+    display: flex;
+    flex-direction: column;
+    overflow-y: visible;
+  }
+  .left-col, .right-col {
+    min-height: 500px;
+    border-right: none;
+    border-bottom: 1px solid var(--bg3);
+  }
+  .debug-col {
+    min-height: 400px;
+  }
+}
 
 
 /* ── Minimize Debug Col ── */
@@ -518,7 +546,7 @@ body::after{content:'';position:fixed;inset:0;
         <button class="chip" onclick="loadSample('basic')">Basic</button>
         <button class="chip" onclick="loadSample('smiley')">Smiley</button>
         <button class="chip" onclick="loadSample('spaceship')">Spaceship</button>
-        <button class="chip" onclick="loadSample('rainbow')">Rainbow</button>
+        <button class="chip" onclick="loadSample('cityscape')">Cityscape</button>
         <button class="chip" onclick="loadSample('logo')">Logo</button>
       </div>
     </div>
@@ -573,6 +601,7 @@ body::after{content:'';position:fixed;inset:0;
       <button class="tab on" id="tab-pipeline" onclick="switchTab(this,'pipeline')">PIPELINE</button>
       <button class="tab" onclick="switchTab(this,'source');loadSourceCode()">SOURCE</button>
       <button class="tab" onclick="switchTab(this,'ref')">LANG REF</button>
+      <button class="tab" onclick="switchTab(this,'tests')">TEST SUITE</button>
       <button class="tab tab-minimize" id="toggle-debug-btn" onclick="toggleDebugPanel()">▲ EXPAND</button>
     </div>
         <div id="tc-ref" class="tc">
@@ -593,6 +622,37 @@ body::after{content:'';position:fixed;inset:0;
         <span class="ref-cmd">animate move <em>DIR N</em></span><span class="ref-desc">Animate all shapes moving in direction DIR (left / right / up / down) for N steps/frames</span>
         <span class="ref-cmd">&mdash; OTHER &mdash;</span><span class="ref-desc"></span>
         <span class="ref-cmd"># comment</span><span class="ref-desc">Everything after # on a line is ignored by the lexer</span>
+      </div>
+    </div>
+    <!-- TEST SUITE TAB -->
+    <div id="tc-tests" class="tc">
+      <div style="font-family:'Press Start 2P',cursive;font-size:7px;color:var(--cyan);margin-bottom:14px;letter-spacing:1px">PIXELFORGE TEST SUITE</div>
+      <div class="ref-grid" style="grid-template-columns: 1fr;">
+        <div style="margin-bottom: 15px; border-bottom: 1px solid var(--bg3); padding-bottom: 10px;">
+           <span class="ref-cmd" style="color:var(--green)">Test 1: Bounds Checking (Semantic Error)</span>
+           <div class="ref-desc" style="margin-top:5px; margin-bottom:10px;">Expected Output: Semantic error (Pixel (20,20) out of bounds for 16x16 canvas)</div>
+           <button class="chip" onclick="loadSample('test1')" style="color:var(--bright)">Load Test 1</button>
+        </div>
+        <div style="margin-bottom: 15px; border-bottom: 1px solid var(--bg3); padding-bottom: 10px;">
+           <span class="ref-cmd" style="color:var(--green)">Test 2: Missing argument (Syntax Error)</span>
+           <div class="ref-desc" style="margin-top:5px; margin-bottom:10px;">Expected Output: Syntax error (Expected NUMBER)</div>
+           <button class="chip" onclick="loadSample('test2')" style="color:var(--bright)">Load Test 2</button>
+        </div>
+        <div style="margin-bottom: 15px; border-bottom: 1px solid var(--bg3); padding-bottom: 10px;">
+           <span class="ref-cmd" style="color:var(--green)">Test 3: Optimizer dead code elimination</span>
+           <div class="ref-desc" style="margin-top:5px; margin-bottom:10px;">Expected Output: Compiled OK. Optimizer removes 3 redundant SET_COLOR ops</div>
+           <button class="chip" onclick="loadSample('test3')" style="color:var(--bright)">Load Test 3</button>
+        </div>
+        <div style="margin-bottom: 15px; border-bottom: 1px solid var(--bg3); padding-bottom: 10px;">
+           <span class="ref-cmd" style="color:var(--green)">Test 4: Bresenham circle and line</span>
+           <div class="ref-desc" style="margin-top:5px; margin-bottom:10px;">Expected Output: Compiled OK. A white circle and a red line across it</div>
+           <button class="chip" onclick="loadSample('test4')" style="color:var(--bright)">Load Test 4</button>
+        </div>
+        <div style="margin-bottom: 15px; border-bottom: 1px solid var(--bg3); padding-bottom: 10px;">
+           <span class="ref-cmd" style="color:var(--green)">Test 5: Animation and filling</span>
+           <div class="ref-desc" style="margin-top:5px; margin-bottom:10px;">Expected Output: Compiled OK. A moving blue square, 10 frames</div>
+           <button class="chip" onclick="loadSample('test5')" style="color:var(--bright)">Load Test 5</button>
+        </div>
       </div>
     </div>
     <!-- SOURCE CODE TAB -->
@@ -1190,6 +1250,44 @@ class Renderer {
 //  SAMPLES
 // ─────────────────────────────────────────────────────────────
 const SAMPLES = {
+  test1:
+`# Test 1: Bounds Checking (Semantic Error)
+# Expected Output: Semantic error (Pixel (20,20) out of bounds for 16x16 canvas)
+canvas 16 16
+color red
+draw pixel 20 20`,
+  test2:
+`# Test 2: Missing argument (Syntax Error)
+# Expected Output: Syntax error (Expected NUMBER)
+canvas 16 16
+color blue
+draw square 5 5`,
+  test3:
+`# Test 3: Optimizer dead code elimination
+# Expected Output: Compiled OK. Optimizer removes 3 redundant SET_COLOR ops
+canvas 16 16
+color red
+color green
+color blue
+color white
+draw pixel 5 5`,
+  test4:
+`# Test 4: Bresenham circle and line
+# Expected Output: Compiled OK. A white circle and a red line across it
+canvas 32 32
+fill black
+color white
+draw circle 16 16 10
+color red
+draw line 0 0 31 31`,
+  test5:
+`# Test 5: Animation and filling
+# Expected Output: Compiled OK. A moving blue square, 10 frames
+canvas 16 16
+fill black
+color blue
+draw square 0 6 4
+animate move right 10`,
   basic:
 `# From the PixelForge proposal
 canvas 16 16
@@ -1253,32 +1351,27 @@ draw pixel 19 18
 draw pixel 20 18
 draw pixel 21 18
 animate move left 24`,
-  rainbow:
-`# Rainbow stripe canvas
-canvas 24 20
+  cityscape:
+`# Neon Cityscape
+canvas 32 32
 fill black
-color red
-draw square 0 0 24
-draw square 0 1 24
-color orange
-draw square 0 3 24
-draw square 0 4 24
-color yellow
-draw square 0 6 24
-draw square 0 7 24
-color lime
-draw square 0 9 24
-draw square 0 10 24
-color cyan
-draw square 0 12 24
-draw square 0 13 24
+color white
+draw pixel 4 4
+draw pixel 10 2
+draw pixel 28 6
+draw pixel 20 5
 color blue
-draw square 0 15 24
-draw square 0 16 24
+draw rect 2 16 6 16
+color cyan
+draw rect 10 12 8 20
 color magenta
-draw square 0 18 24
-draw square 0 19 24
-animate move left 12`,
+draw rect 20 20 10 12
+color yellow
+draw square 12 14 2
+draw square 16 14 2
+draw square 12 18 2
+draw square 16 18 2
+animate move left 8`,
   logo:
 `# PixelForge logo letters P+F
 canvas 30 12
@@ -1688,7 +1781,7 @@ function exportPNG(){
 function switchTab(el,name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   // Hide all tc panels
-  ['tc-ref','tc-source','tc-pipeline'].forEach(id=>{
+  ['tc-ref','tc-source','tc-pipeline','tc-tests'].forEach(id=>{
     const el2=document.getElementById(id);
     if(el2) el2.classList.remove('on');
   });
